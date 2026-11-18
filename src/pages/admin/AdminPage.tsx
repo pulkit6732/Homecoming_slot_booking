@@ -10,13 +10,16 @@ import { FilterBar } from '../../components/admin/FilterBar'
 import { StudentTable } from '../../components/admin/StudentTable'
 import { FlaggedStudentsSection } from '../../components/admin/FlaggedStudentsSection'
 import { UnbookedStudentsSection } from '../../components/admin/UnbookedStudentsSection'
+import { AdminScheduleView } from '../../components/admin/AdminScheduleView'
 import { ReviewActionModal, type ReviewActionType } from '../../components/admin/ReviewActionModal'
 import '../../styles/portal.css'
 
 type AdminTab = 'SCHEDULE' | 'FLAGGED' | 'UNBOOKED'
+type ScheduleSubView = 'GRID' | 'TABLE'
 
 export function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('SCHEDULE')
+  const [scheduleSubView, setScheduleSubView] = useState<ScheduleSubView>('GRID')
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
       return localStorage.getItem('gitam_admin_active_date_v1') || ELIGIBLE_DATES[0].date
@@ -68,11 +71,12 @@ export function AdminPage() {
     }
   }
 
-  // Derive students and daily summary directly based on selectedDate and revision
+  // Derive students, slots and daily summary directly based on selectedDate and revision
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   revision // reactive dependency
   const allStudents = mockStorage.getAllStudents()
   const daySummary = mockStorage.getDaySummary(selectedDate)
+  const slotsForDate = mockStorage.getSlotsForDate(selectedDate)
 
   const handleResetFilters = () => {
     const emptyFilters: SearchFilters = {
@@ -128,6 +132,12 @@ export function AdminPage() {
     void triggerSync()
   }
 
+  // Confirm Cancel / Remove Slot Reservation
+  const handleConfirmCancelBooking = (studentId: string) => {
+    mockStorage.cancelBooking(studentId, 'Administrator')
+    void triggerSync()
+  }
+
   // Filtered students for the table
   const bookedStudentsOnDate = allStudents.filter(
     (s) => s.bookingStatus === 'Booked' && s.bookedDate === selectedDate,
@@ -147,22 +157,24 @@ export function AdminPage() {
         label="Admin Dashboard Live Sync"
       />
 
-      {/* Simulation Banner */}
-      <div className="simulation-pill-banner">
-        <span>
-          <strong>Phase 5 Active</strong> — Real-time Google Sheets 3-tab architecture and near-real-time polling.
-        </span>
-        <button type="button" className="btn-reset-mock" onClick={handleResetAllMockData}>
-          Reset Data
-        </button>
-      </div>
-
       <div className="page-heading">
-        <p className="eyebrow">GITAM Administration • Interview Operations</p>
-        <h1>Interview Schedule & Review Dashboard</h1>
-        <p>
-          Monitor 10-minute interview slots, evaluate student dossiers, and manage approval and review flag statuses.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <p className="eyebrow">GITAM Administration • Interview Operations</p>
+            <h1>Interview Schedule & Review Dashboard</h1>
+            <p>
+              Monitor slot availability, inspect which student booked which slot, evaluate candidate dossiers, or release slot reservations.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+            onClick={handleResetAllMockData}
+          >
+            Reset Fixture Data
+          </button>
+        </div>
       </div>
 
       {/* Sub-Navigation Tabs */}
@@ -174,7 +186,7 @@ export function AdminPage() {
           role="tab"
           aria-selected={activeTab === 'SCHEDULE'}
         >
-          Daily Schedule & Student Directory
+          Daily Schedule & Slots ({daySummary.available} Left)
         </button>
         <button
           type="button"
@@ -205,18 +217,70 @@ export function AdminPage() {
           {/* 7 Summary Cards */}
           <DailySummary summary={daySummary} />
 
-          {/* Filter Bar */}
-          <FilterBar
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onResetFilters={handleResetFilters}
-          />
+          {/* Schedule View Mode Toggle */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              margin: '1.5rem 0 1rem',
+              paddingBottom: '0.75rem',
+              borderBottom: '1px solid var(--portal-border)',
+            }}
+          >
+            <div>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--portal-text)', textTransform: 'uppercase' }}>
+                Inspection Mode:
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className={`admin-subnav-btn ${scheduleSubView === 'GRID' ? 'active' : ''}`}
+                style={{ fontSize: '0.825rem', padding: '0.35rem 0.85rem' }}
+                onClick={() => setScheduleSubView('GRID')}
+              >
+                36-Slot Schedule Grid ({daySummary.available} Available)
+              </button>
+              <button
+                type="button"
+                className={`admin-subnav-btn ${scheduleSubView === 'TABLE' ? 'active' : ''}`}
+                style={{ fontSize: '0.825rem', padding: '0.35rem 0.85rem' }}
+                onClick={() => setScheduleSubView('TABLE')}
+              >
+                Booked Candidate Table ({bookedStudentsOnDate.length})
+              </button>
+            </div>
+          </div>
 
-          {/* Student Table with Expandable Dossiers */}
-          <StudentTable
-            students={filteredBookedStudents}
-            onTriggerReviewAction={handleTriggerReviewAction}
-          />
+          {/* VIEW MODE A: 36-Slot Schedule Grid */}
+          {scheduleSubView === 'GRID' && (
+            <AdminScheduleView
+              slots={slotsForDate}
+              students={allStudents}
+              onRemoveSlot={(student) => handleTriggerReviewAction(student, 'CANCEL_BOOKING')}
+              onViewStudent={(student) => {
+                setScheduleSubView('TABLE')
+                setFilters({ ...filters, nameQuery: student.fullName })
+              }}
+            />
+          )}
+
+          {/* VIEW MODE B: Filter Bar & Detailed Candidate Table */}
+          {scheduleSubView === 'TABLE' && (
+            <>
+              <FilterBar
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onResetFilters={handleResetFilters}
+              />
+
+              <StudentTable
+                students={filteredBookedStudents}
+                onTriggerReviewAction={handleTriggerReviewAction}
+              />
+            </>
+          )}
         </>
       )}
 
@@ -246,6 +310,7 @@ export function AdminPage() {
         onConfirmReject={handleConfirmReject}
         onConfirmFlag={handleConfirmFlag}
         onConfirmClearFlag={handleConfirmClearFlag}
+        onConfirmCancelBooking={handleConfirmCancelBooking}
       />
     </div>
   )

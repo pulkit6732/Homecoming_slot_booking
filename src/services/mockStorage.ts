@@ -218,6 +218,43 @@ class MockStorageService {
     }
   }
 
+  /**
+   * Releases and cancels an active interview booking.
+   * Can be performed by an administrator or student.
+   * Frees the 10-minute slot and preserves candidate evaluation history.
+   */
+  public cancelBooking(studentId: string, cancelledBy = 'Administrator'): { success: boolean; message: string } {
+    const student = this.getStudentById(studentId)
+    if (!student) {
+      return { success: false, message: `Student ${studentId} not found.` }
+    }
+
+    if (student.bookingStatus !== 'Booked') {
+      return { success: false, message: `Student ${student.fullName} has no active booking to cancel.` }
+    }
+
+    const previousSlotDate = student.bookedDate
+    const previousSlotTime = student.bookedSlotStart
+
+    // Remove from active bookings array
+    this.inMemoryBookings = this.inMemoryBookings.filter((b) => b.studentId !== studentId)
+
+    // Update student row in place
+    student.bookingStatus = 'Cancelled'
+    student.decisionComment = `Reservation removed and slot freed by ${cancelledBy}`
+    student.bookedDate = ''
+    student.bookedSlotStart = ''
+    student.bookedSlotEnd = ''
+    student.bookingId = ''
+
+    this.save()
+
+    return {
+      success: true,
+      message: `Interview slot on ${previousSlotDate} at ${previousSlotTime} for ${student.fullName} has been removed and released by ${cancelledBy}.`,
+    }
+  }
+
   // ─── Admin Review Operations ──────────────────────────────
 
   public approveStudent(studentId: string, comment: string, adminName: string): boolean {

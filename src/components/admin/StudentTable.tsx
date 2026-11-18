@@ -175,6 +175,15 @@ export function StudentTable({ students, onTriggerReviewAction }: StudentTablePr
                             Flag
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          className="btn-table-action btn-reject"
+                          onClick={() => onTriggerReviewAction(student, 'CANCEL_BOOKING')}
+                          title="Release this slot and cancel reservation"
+                        >
+                          Remove Slot
+                        </button>
                       </div>
                     </div>
 

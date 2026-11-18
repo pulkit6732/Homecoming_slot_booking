@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Student } from '../../types'
 import { Modal } from '../common/Modal'
 
-export type ReviewActionType = 'APPROVE' | 'REJECT' | 'FLAG' | 'CLEAR_FLAG'
+export type ReviewActionType = 'APPROVE' | 'REJECT' | 'FLAG' | 'CLEAR_FLAG' | 'CANCEL_BOOKING'
 
 interface ReviewActionModalProps {
   isOpen: boolean
@@ -13,6 +13,7 @@ interface ReviewActionModalProps {
   onConfirmReject: (studentId: string, reason: string) => void
   onConfirmFlag: (studentId: string, reason: string) => void
   onConfirmClearFlag: (studentId: string) => void
+  onConfirmCancelBooking?: (studentId: string, reason: string) => void
 }
 
 export function ReviewActionModal({
@@ -24,6 +25,7 @@ export function ReviewActionModal({
   onConfirmReject,
   onConfirmFlag,
   onConfirmClearFlag,
+  onConfirmCancelBooking,
 }: ReviewActionModalProps) {
   const draftKey = student ? `gitam_review_draft_${student.studentId}_${actionType || ''}` : ''
 
@@ -49,24 +51,31 @@ export function ReviewActionModal({
 
   const handleCommentChange = (val: string) => {
     setComment(val)
+    setValidationError(null)
     if (draftKey) {
       try {
         localStorage.setItem(`${draftKey}_comment`, val)
       } catch {
-        // storage fallback
+        // ignore
       }
     }
   }
 
   const handleReasonChange = (val: string) => {
     setReason(val)
+    setValidationError(null)
     if (draftKey) {
       try {
         localStorage.setItem(`${draftKey}_reason`, val)
       } catch {
-        // storage fallback
+        // ignore
       }
     }
+  }
+
+  const handleClose = () => {
+    setValidationError(null)
+    onClose()
   }
 
   const clearDraft = () => {
@@ -75,71 +84,73 @@ export function ReviewActionModal({
         localStorage.removeItem(`${draftKey}_comment`)
         localStorage.removeItem(`${draftKey}_reason`)
       } catch {
-        // storage fallback
+        // ignore
       }
     }
   }
 
-  if (!student || !actionType) return null
-
-  const handleClose = () => {
-    setValidationError(null)
-    onClose()
-  }
-
   const handleSubmit = () => {
-    setValidationError(null)
+    if (!student) return
 
     if (actionType === 'APPROVE') {
       onConfirmApprove(student.studentId, comment)
       clearDraft()
-      setComment('')
       handleClose()
     } else if (actionType === 'REJECT') {
       if (!reason.trim()) {
-        setValidationError('A specific rejection reason is mandatory.')
+        setValidationError('Rejection reason is mandatory per academic audit policy.')
         return
       }
-      onConfirmReject(student.studentId, reason.trim())
+      onConfirmReject(student.studentId, reason)
       clearDraft()
-      setReason('')
       handleClose()
     } else if (actionType === 'FLAG') {
       if (!reason.trim()) {
-        setValidationError('A reason for flagging this profile is mandatory.')
+        setValidationError('A reason is mandatory when flagging a student for review.')
         return
       }
-      onConfirmFlag(student.studentId, reason.trim())
+      onConfirmFlag(student.studentId, reason)
       clearDraft()
-      setReason('')
       handleClose()
     } else if (actionType === 'CLEAR_FLAG') {
       onConfirmClearFlag(student.studentId)
       clearDraft()
       handleClose()
+    } else if (actionType === 'CANCEL_BOOKING') {
+      if (onConfirmCancelBooking) {
+        onConfirmCancelBooking(student.studentId, reason || comment || 'Cancelled by administrator')
+      }
+      clearDraft()
+      handleClose()
     }
   }
+
+  if (!student || !actionType) return null
 
   let title = ''
   let actionButtonLabel = ''
   let actionBtnClass = 'btn-book-slot'
 
   if (actionType === 'APPROVE') {
-    title = `Approve Student: ${student.fullName}`
+    title = `Approve Candidate: ${student.fullName}`
     actionButtonLabel = 'Confirm Approval'
     actionBtnClass = 'btn-book-slot'
   } else if (actionType === 'REJECT') {
-    title = `Reject Student: ${student.fullName}`
+    title = `Reject Candidate: ${student.fullName}`
     actionButtonLabel = 'Confirm Rejection'
-    actionBtnClass = 'btn-danger'
+    actionBtnClass = 'btn-table-action btn-reject'
   } else if (actionType === 'FLAG') {
     title = `Flag for Review: ${student.fullName}`
-    actionButtonLabel = 'Flag Candidate'
-    actionBtnClass = 'btn-warning'
+    actionButtonLabel = 'Flag Profile'
+    actionBtnClass = 'btn-table-action btn-flag'
   } else if (actionType === 'CLEAR_FLAG') {
     title = `Clear Review Flag: ${student.fullName}`
     actionButtonLabel = 'Clear Flag'
     actionBtnClass = 'btn-secondary'
+  } else if (actionType === 'CANCEL_BOOKING') {
+    title = `Remove Slot Reservation: ${student.fullName}`
+    actionButtonLabel = 'Free Up Slot & Cancel Booking'
+    actionBtnClass = 'btn-table-action btn-reject'
   }
 
   return (
@@ -148,7 +159,10 @@ export function ReviewActionModal({
         <div style={{ fontSize: '0.9rem', color: 'var(--portal-text-muted)' }}>
           Student ID: <strong>{student.studentId}</strong> | Roll Number: <strong>{student.rollNumber}</strong>
           <br />
-          Current Status: <strong>{student.approvalStatus}</strong> | Flag: <strong>{student.reviewFlagStatus}</strong>
+          Current Status: <strong>{student.approvalStatus}</strong> | Booking: <strong>{student.bookingStatus}</strong>
+          {student.bookedSlotStart && (
+            <span> | Slot: <strong>{student.bookedSlotStart} on {student.bookedDate}</strong></span>
+          )}
         </div>
 
         {actionType === 'APPROVE' && (
@@ -216,6 +230,42 @@ export function ReviewActionModal({
               Previous flag reason was: "{student.flagReason}"
             </span>
           </p>
+        )}
+
+        {actionType === 'CANCEL_BOOKING' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--status-rejected-bg)',
+                border: '1px solid #f8b4b4',
+                color: 'var(--status-rejected-text)',
+                padding: '0.85rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.9rem',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Warning:</strong> You are about to remove the interview slot ({student.bookedSlotStart} on {student.bookedDate}) for <strong>{student.fullName}</strong>.
+              This will release the 10-minute slot and make it immediately available for other students to reserve.
+            </div>
+
+            <div className="filter-input-group">
+              <label htmlFor="cancel-reason">Reason or Administrative Note (Optional):</label>
+              <textarea
+                id="cancel-reason"
+                rows={2}
+                placeholder="e.g. Candidate requested slot rescheduling due to lab exam conflict."
+                value={reason}
+                onChange={(e) => handleReasonChange(e.target.value)}
+                style={{
+                  padding: '0.55rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--portal-border)',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {validationError && (
