@@ -19,10 +19,13 @@ export function AppLayout() {
       <header className="site-header">
         <div className="site-header__inner">
           <NavLink className="brand" to="/student" end>
-            <span className="brand__mark" aria-hidden="true">
-              G
-            </span>
-            <span>GITAM Interview Portal</span>
+            <img
+              src="/gitam-logo.png"
+              alt="GITAM Deemed to be University"
+              className="brand__logo"
+            />
+            <span className="brand__divider" aria-hidden="true" />
+            <span className="brand__title">Interview Portal</span>
           </NavLink>
 
           <nav className="primary-navigation" aria-label="Main navigation">

@@ -21,6 +21,13 @@ export function UnauthorizedPage() {
 
   return (
     <div style={{ maxWidth: '540px', margin: '3rem auto', padding: '0 1rem' }}>
+      <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+        <img
+          src="/gitam-logo.png"
+          alt="GITAM Deemed to be University"
+          style={{ height: '3.75rem', width: 'auto', display: 'inline-block' }}
+        />
+      </div>
       <div
         style={{
           background: 'var(--portal-card-bg)',
