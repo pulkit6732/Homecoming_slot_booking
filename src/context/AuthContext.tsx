@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data } = await supabase.auth.getSession()
           if (data.session?.user?.email) {
             const userEmail = data.session.user.email.toLowerCase()
-            const appRole = data.session.user.app_metadata?.role as string | undefined
+            const appRole = (data.session.user.app_metadata?.role || data.session.user.user_metadata?.role) as string | undefined
 
             if (appRole === 'admin') {
               setUser({
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (data.user?.email) {
           const userEmail = data.user.email.toLowerCase()
-          const appRole = data.user.app_metadata?.role as string | undefined
+          const appRole = (data.user.app_metadata?.role || data.user.user_metadata?.role) as string | undefined
 
           if (appRole === 'admin') {
             const adminUser: AuthUser = {
