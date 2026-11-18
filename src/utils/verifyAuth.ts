@@ -6,7 +6,7 @@ console.log('--- RUNNING PHASE 3 AUTHENTICATION & ACCESS CONTROL TESTS ---')
 // Test 1: Admin Allowlist Verification
 console.assert(ADMIN_EMAILS_ALLOWLIST.length > 0, 'Admin allowlist must not be empty')
 console.assert(isEmailAuthorizedAdmin('admin@gitam.in') === true, 'admin@gitam.in must be authorized')
-console.assert(isEmailAuthorizedAdmin('pulkitsrivastavae@gmail.com') === true, 'pulkitsrivastavae@gmail.com must be authorized')
+console.assert(isEmailAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === true, '112525884+pulkit6732@users.noreply.github.com must be authorized')
 console.assert(isEmailAuthorizedAdmin('asharma14@gitam.in') === false, 'Student email must NOT be recognized as admin')
 console.assert(isEmailAuthorizedAdmin('unknown@random.com') === false, 'Random email must NOT be recognized as admin')
 console.log('[PASS] Test 1: Admin email allowlist correctly discriminates authorized administrators.')

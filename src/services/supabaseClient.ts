@@ -29,7 +29,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 const rawAdminEmails =
   (env.VITE_ADMIN_EMAILS as string | undefined) ||
-  'admin@gitam.in,pulkitsrivastavae@gmail.com'
+  'admin@gitam.in,112525884+pulkit6732@users.noreply.github.com'
 
 export const ADMIN_EMAILS_ALLOWLIST: string[] = rawAdminEmails
   .split(',')
