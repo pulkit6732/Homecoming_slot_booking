@@ -56,7 +56,8 @@ var CONFIG = {
   DEFAULT_ADMIN_EMAILS: [
     'admin@gitam.in',
     'interviews@gitam.in',
-    'placement@gitam.in'
+    'placement@gitam.in',
+    'placement.homecoming2026@gitam.in'
   ],
   
   // Error codes conforming to specification

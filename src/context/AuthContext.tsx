@@ -15,7 +15,7 @@ import { mockStorage } from '../services/mockStorage.ts'
 const AUTH_STORAGE_KEY = 'gitam_auth_session_v1'
 
 // Explicit development admin identifiers for isolated dev testing only
-const DEV_AUTHORIZED_ADMINS = ['admin@gitam.in', 'placement@gitam.in']
+const DEV_AUTHORIZED_ADMINS = ['admin@gitam.in', 'placement@gitam.in', 'placement.homecoming2026@gitam.in']
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)

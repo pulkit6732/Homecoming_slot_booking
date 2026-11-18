@@ -92,7 +92,8 @@ function getStudentRecordByEmail(email) {
   var rows = readSheetRowsWithHeader(sheet);
 
   for (var i = 0; i < rows.length; i++) {
-    var rowEmail = String(rows[i].data.Email || '').trim().toLowerCase();
+    var d = rows[i].data;
+    var rowEmail = String(d.Email || d['GITAM Email'] || d['Student Email'] || d['Email Address'] || d['Candidate Email'] || '').trim().toLowerCase();
     if (rowEmail === target) {
       return rows[i].data;
     }
@@ -112,7 +113,8 @@ function getStudentRecordWithRowById(studentId) {
   var rows = readSheetRowsWithHeader(sheet);
 
   for (var i = 0; i < rows.length; i++) {
-    var sid = String(rows[i].data.StudentID || '').trim();
+    var d = rows[i].data;
+    var sid = String(d.StudentID || d['Student ID'] || d['Roll Number'] || d['Registration Number'] || '').trim();
     if (sid === target) {
       return rows[i];
     }

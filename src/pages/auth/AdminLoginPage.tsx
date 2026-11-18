@@ -167,6 +167,18 @@ export function AdminLoginPage() {
                 type="button"
                 className="btn-secondary"
                 style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
+                onClick={() => handlePreFill('placement.homecoming2026@gitam.in')}
+              >
+                <div><strong>Lead Placement Administrator (Homecoming 2026)</strong></div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
+                  Email: placement.homecoming2026@gitam.in
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
                 onClick={() => handlePreFill('admin@gitam.in')}
               >
                 <div><strong>Placement Office Administrator</strong></div>
