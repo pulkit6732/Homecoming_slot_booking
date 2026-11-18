@@ -1,0 +1,653 @@
+/* ─── Variables & Tokens ─────────────────────────────────── */
+:root {
+  --portal-primary: #126b45;
+  --portal-primary-hover: #0c5134;
+  --portal-primary-light: #e6f4ed;
+  --portal-bg: #f8faf9;
+  --portal-card-bg: #ffffff;
+  --portal-border: #dce7e1;
+  --portal-text: #172b22;
+  --portal-text-muted: #53645b;
+
+  --color-available: #126b45;
+  --color-available-bg: #eaf7f0;
+  --color-booked: #6b7770;
+  --color-booked-bg: #f0f2f1;
+
+  --status-approved-text: #0e623b;
+  --status-approved-bg: #e6f7ee;
+  --status-rejected-text: #9e1a1a;
+  --status-rejected-bg: #fde8e8;
+  --status-flagged-text: #8a6100;
+  --status-flagged-bg: #fff8e1;
+  --status-pending-text: #4a5568;
+  --status-pending-bg: #edf2f7;
+
+  --shadow-sm: 0 1px 3px rgba(18, 107, 69, 0.05);
+  --shadow-md: 0 4px 12px rgba(18, 107, 69, 0.08);
+  --shadow-lg: 0 10px 25px rgba(18, 107, 69, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* ─── Date Selector Tabs ────────────────────────────────── */
+.date-selector-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+}
+
+.date-tab-button {
+  flex: 1 1 0;
+  min-width: 130px;
+  padding: 0.85rem 1rem;
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.date-tab-button:hover {
+  border-color: var(--portal-primary);
+  background: var(--portal-primary-light);
+}
+
+.date-tab-button.active {
+  background: var(--portal-primary);
+  border-color: var(--portal-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.date-tab-button .day-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.date-tab-button .date-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.date-tab-button.active .day-label,
+.date-tab-button.active .date-label {
+  color: #ffffff;
+}
+
+/* ─── Slot Directory Grid ────────────────────────────────── */
+.slot-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--portal-text);
+  margin: 1.5rem 0 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.slot-card {
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.slot-card.available {
+  border-color: #c4e4d3;
+}
+
+.slot-card.available:hover {
+  border-color: var(--portal-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.slot-card.booked {
+  background: var(--color-booked-bg);
+  border-color: #d8deda;
+  opacity: 0.85;
+}
+
+.slot-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--portal-text);
+}
+
+.slot-card.booked .slot-time {
+  color: var(--portal-text-muted);
+}
+
+.slot-occupant-info {
+  font-size: 0.85rem;
+  color: var(--portal-text-muted);
+  background: #ffffff;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--portal-border);
+}
+
+.btn-book-slot {
+  background: var(--portal-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-book-slot:hover {
+  background: var(--portal-primary-hover);
+}
+
+/* ─── Status Badges ──────────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.badge-available {
+  background: var(--color-available-bg);
+  color: var(--color-available);
+  border: 1px solid #b7dfcb;
+}
+
+.badge-booked {
+  background: var(--color-booked-bg);
+  color: var(--color-booked);
+  border: 1px solid #d2d8d5;
+}
+
+.badge-approved {
+  background: var(--status-approved-bg);
+  color: var(--status-approved-text);
+  border: 1px solid #b9e6cf;
+}
+
+.badge-rejected {
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected-text);
+  border: 1px solid #f8b4b4;
+}
+
+.badge-flagged {
+  background: var(--status-flagged-bg);
+  color: var(--status-flagged-text);
+  border: 1px solid #ffe082;
+}
+
+.badge-pending {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border: 1px solid #cbd5e0;
+}
+
+/* ─── Modal Dialogs ──────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 35, 25, 0.55);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  max-width: 540px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--portal-border);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--portal-text);
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--portal-text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-body {
+  font-size: 0.95rem;
+  color: var(--portal-text);
+  line-height: 1.6;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--portal-border);
+}
+
+.btn-secondary {
+  background: #eef2ef;
+  color: var(--portal-text);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger {
+  background: #c52222;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-warning {
+  background: #b8860b;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ─── Admin Summary Cards ────────────────────────────────── */
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.summary-card-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--portal-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.summary-card-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--portal-text);
+}
+
+.summary-card.highlight-booked .summary-card-value {
+  color: var(--portal-primary);
+}
+
+.summary-card.highlight-approved .summary-card-value {
+  color: var(--status-approved-text);
+}
+
+.summary-card.highlight-rejected .summary-card-value {
+  color: var(--status-rejected-text);
+}
+
+.summary-card.highlight-flagged .summary-card-value {
+  color: var(--status-flagged-text);
+}
+
+/* ─── Search & Filters Bar ───────────────────────────────── */
+.filter-bar-container {
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filter-input-group {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filter-input-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+}
+
+.filter-input-group input,
+.filter-input-group select {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--portal-text);
+  background: #ffffff;
+}
+
+.filter-input-group input:focus,
+.filter-input-group select:focus {
+  outline: 2px solid var(--portal-primary);
+  border-color: var(--portal-primary);
+}
+
+/* ─── Admin Table ────────────────────────────────────────── */
+.table-responsive {
+  background: var(--portal-card-bg);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1rem;
+}
+
+.admin-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.admin-data-table th {
+  background: #f4f8f5;
+  color: var(--portal-text);
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--portal-border);
+  white-space: nowrap;
+}
+
+.admin-data-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #eef2ef;
+  color: var(--portal-text);
+  vertical-align: middle;
+}
+
+.admin-data-table tr:hover td {
+  background: #fafdfb;
+}
+
+.admin-actions-cell {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-table-action {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--portal-border);
+  background: #ffffff;
+  color: var(--portal-text);
+  transition: all 0.15s ease;
+}
+
+.btn-table-action:hover {
+  background: var(--portal-primary-light);
+  border-color: var(--portal-primary);
+}
+
+.btn-table-action.btn-approve:hover {
+  background: var(--status-approved-bg);
+  border-color: var(--status-approved-text);
+  color: var(--status-approved-text);
+}
+
+.btn-table-action.btn-reject:hover {
+  background: var(--status-rejected-bg);
+  border-color: var(--status-rejected-text);
+  color: var(--status-rejected-text);
+}
+
+.btn-table-action.btn-flag:hover {
+  background: var(--status-flagged-bg);
+  border-color: var(--status-flagged-text);
+  color: var(--status-flagged-text);
+}
+
+/* ─── Expandable Student Profile Panel ───────────────────── */
+.student-profile-expanded-panel {
+  background: #fbfdfc;
+  padding: 1.5rem;
+  border-bottom: 2px solid #e2ede7;
+}
+
+.profile-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.profile-group {
+  background: #ffffff;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.profile-group-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--portal-primary);
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f4f2;
+  padding-bottom: 0.35rem;
+}
+
+.profile-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.profile-field-row .field-key {
+  color: var(--portal-text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.profile-field-row .field-val {
+  color: var(--portal-text);
+  word-break: break-word;
+}
+
+/* ─── Pagination Controls ────────────────────────────────── */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--portal-text-muted);
+}
+
+.pagination-controls-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pagination-btn {
+  padding: 0.4rem 0.75rem;
+  background: #ffffff;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--portal-text);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-btn:not(:disabled):hover {
+  background: var(--portal-primary-light);
+  border-color: var(--portal-primary);
+}
+
+/* ─── Simulation Notice ──────────────────────────────────── */
+.simulation-pill-banner {
+  background: #eef7f2;
+  border: 1px solid #cae6d7;
+  color: #175238;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.simulation-pill-banner strong {
+  font-weight: 700;
+}
+
+.btn-reset-mock {
+  background: #ffffff;
+  border: 1px solid #b7dfcb;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-primary);
+  cursor: pointer;
+}
+
+.btn-reset-mock:hover {
+  background: var(--portal-primary-light);
+}
+
+/* ─── Section Toggles / Navigation ───────────────────────── */
+.admin-subnav-pills {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--portal-border);
+  padding-bottom: 0.5rem;
+}
+
+.admin-subnav-btn {
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--portal-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-subnav-btn.active {
+  background: var(--portal-primary-light);
+  color: var(--portal-primary);
+}
+
+.counter-bubble {
+  background: #ffffff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid var(--portal-border);
+}
