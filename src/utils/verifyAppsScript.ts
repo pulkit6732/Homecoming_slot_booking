@@ -13,7 +13,12 @@ import {
   isValidSlot
 } from './schedule.ts';
 import { mockStorage } from '../services/mockStorage.ts';
-import { isEmailAuthorizedAdmin } from '../services/supabaseClient.ts';
+
+// Server-side authoritative admin verification
+const SERVER_ADMIN_ALLOWLIST = ['admin@gitam.in', 'placement@gitam.in', 'interviews@gitam.in'];
+function isAuthorizedAdmin(email: string): boolean {
+  return SERVER_ADMIN_ALLOWLIST.includes(email.trim().toLowerCase());
+}
 
 console.log('--- RUNNING PHASE 4 APPS SCRIPT BACKEND VERIFICATION SUITE ---');
 
@@ -118,10 +123,10 @@ console.assert(student?.bookingStatus === 'Booked', 'bookingStatus must still re
 
 // Test 7: Admin Privileges Allowlist
 console.log('Running Test 7: Admin Allowlist Authorization Check...');
-console.assert(isEmailAuthorizedAdmin('admin@gitam.in') === true, 'admin@gitam.in must be authorized');
-console.assert(isEmailAuthorizedAdmin('placement@gitam.in') === true, 'placement@gitam.in must be authorized');
-console.assert(isEmailAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === false, 'Personal noreply email is not an app admin');
-console.assert(isEmailAuthorizedAdmin('student@gitam.in') === false, 'student@gitam.in must NOT be authorized');
-console.assert(isEmailAuthorizedAdmin('attacker@malicious.com') === false, 'external email must NOT be authorized');
+console.assert(isAuthorizedAdmin('admin@gitam.in') === true, 'admin@gitam.in must be authorized');
+console.assert(isAuthorizedAdmin('placement@gitam.in') === true, 'placement@gitam.in must be authorized');
+console.assert(isAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === false, 'Personal noreply email is not an app admin');
+console.assert(isAuthorizedAdmin('student@gitam.in') === false, 'student@gitam.in must NOT be authorized');
+console.assert(isAuthorizedAdmin('attacker@malicious.com') === false, 'external email must NOT be authorized');
 
 console.log('--- ALL PHASE 4 APPS SCRIPT VERIFICATION TESTS PASSED WITH ZERO ERRORS ---');

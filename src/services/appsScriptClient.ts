@@ -3,7 +3,7 @@
  * 
  * Project: GITAM Interview Portal (Homecoming Slot Booking)
  * Communicates with the Google Apps Script Web App (VITE_APPS_SCRIPT_URL).
- * Provides seamless fallback to verified local storage during offline/development mode.
+ * Provides seamless fallback to verified local storage ONLY during explicitly enabled development mode.
  * Zero emojis per specification.
  */
 
@@ -17,6 +17,7 @@ import type {
   ReviewActionData
 } from '../types/api.ts';
 import { mockStorage } from './mockStorage.ts';
+import { isDevMockAuthEnabled } from '../context/authEnv.ts';
 
 const globalProcess = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process;
 
@@ -89,8 +90,16 @@ export async function getAvailability(date: string): Promise<ApiResponse<Availab
     try {
       return await getFromBackend<AvailabilityData>({ action: 'getAvailability', date });
     } catch {
-      // Fall through to mock storage fallback
+      // Fall through to mock storage only if development mock is enabled
     }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
   }
 
   const slots = mockStorage.getSlotsForDate(date);
@@ -121,13 +130,14 @@ export async function getAvailability(date: string): Promise<ApiResponse<Availab
 
 /**
  * Creates an interview booking with concurrency locking and idempotency.
+ * Resolves student identity strictly on the backend via token in live mode.
  */
 export async function createBooking(
   token: string,
   date: string,
   startTime: string,
   bookingRequestId: string,
-  fallbackStudentId?: string
+  authenticatedStudentId?: string
 ): Promise<ApiResponse<BookingConfirmationData>> {
   if (isLiveBackendConfigured()) {
     try {
@@ -138,14 +148,37 @@ export async function createBooking(
         startTime,
         bookingRequestId
       });
-    } catch {
-      // Fall through to mock storage fallback
+    } catch (err: unknown) {
+      if (!isDevMockAuthEnabled) {
+        const msg = err instanceof Error ? err.message : 'Backend connection error';
+        return {
+          success: false,
+          error: { code: 'BACKEND_ERROR', message: `Backend error: ${msg}` },
+          timestamp: new Date().toISOString()
+        };
+      }
+      // Fall through to dev mock if enabled
     }
   }
 
-  const effectiveStudentId = fallbackStudentId || 'GITAM-2026-005';
+  if (!isDevMockAuthEnabled) {
+    return {
+      success: false,
+      error: { code: 'BOOKING_DISABLED', message: 'Student slot booking is disabled in production while the registration database is being verified.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  if (!authenticatedStudentId) {
+    return {
+      success: false,
+      error: { code: 'AUTH_REQUIRED', message: 'Authenticated student ID is required.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
   const result = mockStorage.bookSlot({
-    studentId: effectiveStudentId,
+    studentId: authenticatedStudentId,
     date,
     startTime,
     bookingRequestId
@@ -201,10 +234,35 @@ export async function cancelBooking(
     }
   }
 
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  if (!targetStudentId) {
+    return {
+      success: false,
+      error: { code: 'AUTH_REQUIRED', message: 'Student ID is required to cancel a reservation.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const result = mockStorage.cancelBooking(targetStudentId, 'Administrator');
+  if (!result.success) {
+    return {
+      success: false,
+      error: { code: 'CANCEL_FAILED', message: result.message },
+      timestamp: new Date().toISOString()
+    };
+  }
+
   return {
     success: true,
     data: {
-      studentId: targetStudentId || 'GITAM-2026-005',
+      studentId: targetStudentId,
       bookingStatus: 'Cancelled',
       cancelledAt: new Date().toISOString()
     },
@@ -229,6 +287,14 @@ export async function getAdminSchedule(
     } catch {
       // Fall through
     }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
   }
 
   const slots = mockStorage.getSlotsForDate(date);
@@ -284,6 +350,14 @@ export async function getAdminSummary(
     }
   }
 
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
   const summary = mockStorage.getDaySummary(date || '2026-11-20');
   const allStudents = mockStorage.getAllStudents();
   return {
@@ -327,7 +401,15 @@ export async function submitReviewAction(
     }
   }
 
-  const actorEmail = adminEmail || 'admin@gitam.in';
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const actorEmail = adminEmail || 'Administrator';
   let success: boolean;
 
   if (action === 'reviewApprove') {

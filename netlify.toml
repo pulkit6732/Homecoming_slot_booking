@@ -1,7 +1,6 @@
 [build]
 command = "npm run build"
 publish = "dist"
-functions = "netlify/functions"
 
 [dev]
 command = "npm run dev"
@@ -10,12 +9,14 @@ port = 8888
 autoLaunch = false
 
 [[redirects]]
-from = "/api/*"
-to = "/.netlify/functions/api/:splat"
-status = 200
-force = true
-
-[[redirects]]
 from = "/*"
 to = "/index.html"
 status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(), microphone=(), geolocation=()"

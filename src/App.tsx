@@ -6,6 +6,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { AdminPage } from './pages/admin/AdminPage'
 import { StudentPage } from './pages/student/StudentPage'
 import { LoginPage } from './pages/auth/LoginPage'
+import { AdminLoginPage } from './pages/auth/AdminLoginPage'
 import { UnauthorizedPage } from './pages/auth/UnauthorizedPage'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/student" replace />} />
               <Route path="login" element={<LoginPage />} />
+              <Route path="admin/login" element={<AdminLoginPage />} />
               <Route path="unauthorized" element={<UnauthorizedPage />} />
               <Route
                 path="student"

@@ -1,8 +1,9 @@
 /**
  * Live Synchronization Hook
  * 
- * Provides near-real-time polling (5-10s interval) and browser tab focus synchronization.
+ * Provides near-real-time polling (8-second interval) and browser tab focus synchronization.
  * Prevents overlapping network requests and updates data without full-page reloads.
+ * Strict Error Recovery: Only updates lastUpdated on confirmed successful data refresh.
  * Timezone: Asia/Kolkata (Indian Standard Time - IST).
  * Zero emojis per specification.
  */
@@ -22,10 +23,14 @@ interface UseLiveSyncOptions {
   onSync?: () => Promise<void> | void
 }
 
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error'
+
 interface UseLiveSyncResult {
   revision: number
   lastUpdated: string
   isSyncing: boolean
+  lastSyncStatus: SyncStatus
+  syncError: string | null
   triggerSync: () => Promise<void>
 }
 
@@ -35,6 +40,8 @@ export function useLiveSync(options: UseLiveSyncOptions = {}): UseLiveSyncResult
   const [revision, setRevision] = useState<number>(0)
   const [lastUpdated, setLastUpdated] = useState<string>(() => formatISTTime(new Date()))
   const [isSyncing, setIsSyncing] = useState<boolean>(false)
+  const [lastSyncStatus, setLastSyncStatus] = useState<SyncStatus>('idle')
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   const isSyncingRef = useRef<boolean>(false)
   const onSyncRef = useRef(onSync)
@@ -57,11 +64,17 @@ export function useLiveSync(options: UseLiveSyncOptions = {}): UseLiveSyncResult
         await onSyncRef.current()
       }
 
+      // Successful refresh: update timestamp, revision, and clear error
       setRevision((prev) => prev + 1)
       setLastUpdated(formatISTTime(new Date()))
+      setLastSyncStatus('success')
+      setSyncError(null)
     } catch (err) {
-      // Gracefully log without crashing the UI
-      console.warn('Live sync refresh encountered an error:', err)
+      // Failed refresh: preserve last valid state, record error, do NOT update lastUpdated timestamp
+      const errorMessage = err instanceof Error ? err.message : 'Synchronization failed'
+      console.warn('Live sync refresh encountered an error:', errorMessage)
+      setLastSyncStatus('error')
+      setSyncError(errorMessage)
     } finally {
       isSyncingRef.current = false
       setIsSyncing(false)
@@ -69,7 +82,7 @@ export function useLiveSync(options: UseLiveSyncOptions = {}): UseLiveSyncResult
   }, [])
 
   useEffect(() => {
-    // 1. Recurring Polling Timer (5-10s, default 8s)
+    // 1. Recurring Polling Timer (8 seconds)
     const intervalId = window.setInterval(() => {
       // Only poll if document is visible to save battery/bandwidth
       if (document.visibilityState === 'visible') {
@@ -111,6 +124,8 @@ export function useLiveSync(options: UseLiveSyncOptions = {}): UseLiveSyncResult
     revision,
     lastUpdated,
     isSyncing,
+    lastSyncStatus,
+    syncError,
     triggerSync,
   }
 }

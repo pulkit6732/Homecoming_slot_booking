@@ -27,16 +27,10 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
     })
   : null
 
-const rawAdminEmails =
-  (env.VITE_ADMIN_EMAILS as string | undefined) ||
-  'admin@gitam.in,placement@gitam.in,interviews@gitam.in'
+/**
+ * Server-authoritative admin policy:
+ * Administrative permissions are verified strictly server-side on Google Apps Script
+ * via script properties or secure backend configuration.
+ * The frontend client does NOT define an authoritative allowlist.
+ */
 
-export const ADMIN_EMAILS_ALLOWLIST: string[] = rawAdminEmails
-  .split(',')
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean)
-
-export function isEmailAuthorizedAdmin(email: string | undefined | null): boolean {
-  if (!email) return false
-  return ADMIN_EMAILS_ALLOWLIST.includes(email.trim().toLowerCase())
-}

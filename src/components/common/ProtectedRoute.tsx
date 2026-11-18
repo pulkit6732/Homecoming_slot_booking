@@ -20,9 +20,10 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     )
   }
 
-  // 1. Not logged in -> Redirect to login page with return path
+  // 1. Not logged in -> Redirect to separate login entry point based on required role
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    const loginTarget = requiredRole === 'admin' ? '/admin/login' : '/login'
+    return <Navigate to={loginTarget} state={{ from: location }} replace />
   }
 
   // 2. Unregistered student attempting any protected route -> Redirect to unauthorized screen

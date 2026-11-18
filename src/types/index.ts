@@ -48,7 +48,6 @@ export interface Student {
   phoneNumber: string
   personalEmail: string
   gitamEmail: string
-  password?: string
   address: string
   city: string
   state: string

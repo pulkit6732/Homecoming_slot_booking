@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { SearchFilters, Student } from '../../types'
 import { ELIGIBLE_DATES } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
+import { getAdminSchedule, getAdminSummary, isLiveBackendConfigured } from '../../services/appsScriptClient'
 import { useLiveSync } from '../../hooks/useLiveSync'
 import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
 import { DateSelector } from '../../components/student/DateSelector'
@@ -28,8 +29,10 @@ export function AdminPage() {
     }
   })
 
-  // Near-real-time synchronization (5-10s polling, tab focus, multi-tab sync)
-  const { revision, lastUpdated, isSyncing, triggerSync } = useLiveSync({ pollIntervalMs: 8000 })
+  // Synchronized state
+  const [allStudents, setAllStudents] = useState<Student[]>(() => mockStorage.getAllStudents())
+  const [daySummary, setDaySummary] = useState(() => mockStorage.getDaySummary(selectedDate))
+  const [slotsForDate, setSlotsForDate] = useState(() => mockStorage.getSlotsForDate(selectedDate))
 
   // Active Review Action Modal state
   const [reviewModalStudent, setReviewModalStudent] = useState<Student | null>(null)
@@ -71,12 +74,39 @@ export function AdminPage() {
     }
   }
 
-  // Derive students, slots and daily summary directly based on selectedDate and revision
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  revision // reactive dependency
-  const allStudents = mockStorage.getAllStudents()
-  const daySummary = mockStorage.getDaySummary(selectedDate)
-  const slotsForDate = mockStorage.getSlotsForDate(selectedDate)
+  // Refresh callback that performs an actual backend or storage fetch
+  const refreshAdminData = useCallback(async () => {
+    if (isLiveBackendConfigured()) {
+      const scheduleRes = await getAdminSchedule('ADMIN_SESSION_TOKEN', selectedDate)
+      const summaryRes = await getAdminSummary('ADMIN_SESSION_TOKEN', selectedDate)
+      if (scheduleRes.success && summaryRes.success) {
+        setDaySummary(mockStorage.getDaySummary(selectedDate))
+        setSlotsForDate(mockStorage.getSlotsForDate(selectedDate))
+        setAllStudents(mockStorage.getAllStudents())
+        return
+      }
+      const err = !scheduleRes.success
+        ? scheduleRes.error.message
+        : (!summaryRes.success ? summaryRes.error.message : 'Admin data sync failed')
+      throw new Error(err)
+    }
+
+    // Local development storage fetch
+    setDaySummary(mockStorage.getDaySummary(selectedDate))
+    setSlotsForDate(mockStorage.getSlotsForDate(selectedDate))
+    setAllStudents(mockStorage.getAllStudents())
+  }, [selectedDate])
+
+  // Near-real-time synchronization (8-second interval polling, tab focus, multi-tab sync)
+  const { lastUpdated, isSyncing, syncError, triggerSync } = useLiveSync({
+    pollIntervalMs: 8000,
+    onSync: refreshAdminData,
+  })
+
+  // Trigger sync on date change
+  useEffect(() => {
+    void triggerSync()
+  }, [selectedDate, triggerSync])
 
   const handleResetFilters = () => {
     const emptyFilters: SearchFilters = {
@@ -156,6 +186,22 @@ export function AdminPage() {
         onRefresh={triggerSync}
         label="Admin Dashboard Live Sync"
       />
+
+      {syncError && (
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '0.65rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1rem',
+            fontSize: '0.85rem',
+          }}
+        >
+          <strong>Sync Notice:</strong> {syncError} (Retrying automatically)
+        </div>
+      )}
 
       <div className="page-heading">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>

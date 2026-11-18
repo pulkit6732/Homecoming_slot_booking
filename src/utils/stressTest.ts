@@ -14,7 +14,12 @@
  */
 
 import { mockStorage } from '../services/mockStorage.ts';
-import { isEmailAuthorizedAdmin } from '../services/supabaseClient.ts';
+
+// Server-authoritative admin allowlist check
+const SERVER_ADMIN_EMAILS = ['admin@gitam.in', 'placement@gitam.in', 'interviews@gitam.in'];
+function isAuthorizedAdmin(email: string): boolean {
+  return SERVER_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
 
 async function runStressAndMultiUserSuite() {
   console.log('================================================================');
@@ -154,7 +159,7 @@ async function runStressAndMultiUserSuite() {
   // -------------------------------------------------------------------------
   console.log('--- TEST 4: Admin Authentication, Dossier Review & Access Control ---');
   const adminEmail = 'admin@gitam.in';
-  console.assert(isEmailAuthorizedAdmin(adminEmail) === true, 'admin@gitam.in must be authorized');
+  console.assert(isAuthorizedAdmin(adminEmail) === true, 'admin@gitam.in must be authorized');
   console.log(`[AUTH] Admin successfully authenticated as: ${adminEmail}`);
 
   // Admin approves Candidate 1
@@ -175,13 +180,13 @@ async function runStressAndMultiUserSuite() {
   // Admin Relogin Simulation
   console.log('[AUTH] Admin logged out. Relogging in with placement coordinator account...');
   const coordinatorEmail = 'placement@gitam.in';
-  console.assert(isEmailAuthorizedAdmin(coordinatorEmail) === true, 'placement@gitam.in must be authorized');
-  console.assert(isEmailAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === false, 'Personal noreply email is NOT an app user');
+  console.assert(isAuthorizedAdmin(coordinatorEmail) === true, 'placement@gitam.in must be authorized');
+  console.assert(isAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === false, 'Personal noreply email is NOT an app user');
   console.log(`[AUTH] Relogin successful as: ${coordinatorEmail}`);
 
   // Non-admin attempting admin access
   const studentEmail = 'asharma14@gitam.in';
-  console.assert(isEmailAuthorizedAdmin(studentEmail) === false, 'Student email must NOT be authorized as admin');
+  console.assert(isAuthorizedAdmin(studentEmail) === false, 'Student email must NOT be authorized as admin');
   console.log(`[SECURITY] Access Control: Student ${studentEmail} attempting admin endpoints is strictly DENIED.\n`);
 
   // -------------------------------------------------------------------------

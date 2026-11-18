@@ -42,6 +42,15 @@ function createBooking(params) {
       );
     }
 
+    // 0. Server-enforced Booking Configuration: Fail closed if booking is disabled
+    var isBookingEnabled = getScriptProperty('BOOKING_ENABLED', 'false') === 'true';
+    if (!isBookingEnabled) {
+      return errorPayload(
+        CONFIG.ERROR_CODES.BOOKING_DISABLED,
+        'Student slot booking is currently disabled while the registration database is being finalized. Please contact the university placement office.'
+      );
+    }
+
     // 1. Authenticate student from token (server-side authority)
     var authResult = authenticateStudent(params.token);
     if (!authResult.authorized) {

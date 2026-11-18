@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { BookingConfirmation, SlotWithStatus } from '../../types'
 import { ELIGIBLE_DATES, getDisplayDate } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
+import { getAvailability, isLiveBackendConfigured } from '../../services/appsScriptClient'
+import { isDevMockAuthEnabled } from '../../context/authEnv'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveSync } from '../../hooks/useLiveSync'
 import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
@@ -16,14 +18,45 @@ export function StudentPage() {
   const [selectedDate, setSelectedDate] = useState<string>(ELIGIBLE_DATES[0].date)
   const [activeSlotToBook, setActiveSlotToBook] = useState<SlotWithStatus | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
+  const [slots, setSlots] = useState<SlotWithStatus[]>(() => mockStorage.getSlotsForDate(selectedDate))
 
-  // Near-real-time synchronization (5-10s polling, tab focus, multi-tab sync)
-  const { revision, lastUpdated, isSyncing, triggerSync } = useLiveSync({ pollIntervalMs: 8000 })
+  // Refresh callback that performs an actual backend or storage fetch
+  const refreshSlots = useCallback(async () => {
+    if (isLiveBackendConfigured()) {
+      const res = await getAvailability(selectedDate)
+      if (res.success && res.data) {
+        setSlots(
+          res.data.slots.map((s) => ({
+            date: selectedDate,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            displayStart: s.displayStart,
+            displayEnd: s.displayEnd,
+            session: s.session.toLowerCase() as 'morning' | 'afternoon',
+            slotIndex: s.slotIndex,
+            status: s.status,
+          }))
+        )
+        return
+      }
+      const errorMsg = !res.success ? res.error.message : 'Failed to fetch slot availability from backend'
+      throw new Error(errorMsg)
+    }
 
-  // Derive fresh data directly from storage based on selectedDate and revision
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  revision // reactive dependency
-  const slots = mockStorage.getSlotsForDate(selectedDate)
+    // Local development storage fetch
+    setSlots(mockStorage.getSlotsForDate(selectedDate))
+  }, [selectedDate])
+
+  // Near-real-time synchronization (8-second interval polling, tab focus, multi-tab sync)
+  const { lastUpdated, isSyncing, syncError, triggerSync } = useLiveSync({
+    pollIntervalMs: 8000,
+    onSync: refreshSlots,
+  })
+
+  // Trigger sync on selected date change
+  useEffect(() => {
+    void triggerSync()
+  }, [selectedDate, triggerSync])
 
   // Find up-to-date profile for the logged in student
   const currentStudent = studentProfile
@@ -34,6 +67,11 @@ export function StudentPage() {
 
   const handleBookSlotClick = (slot: SlotWithStatus) => {
     setNoticeMessage(null)
+
+    if (!isDevMockAuthEnabled) {
+      setNoticeMessage('Interview slot booking is currently disabled while the student registration database is being verified by the university placement office.')
+      return
+    }
 
     if (slot.status === 'BOOKED') {
       setNoticeMessage(`Slot ${slot.displayStart} on ${getDisplayDate(slot.date)} is already reserved by another student.`)
@@ -54,6 +92,13 @@ export function StudentPage() {
     studentId: string,
     slot: SlotWithStatus,
   ): { success: boolean; message: string; confirmation?: BookingConfirmation } => {
+    if (!isDevMockAuthEnabled) {
+      return {
+        success: false,
+        message: 'Interview slot booking is currently disabled while the student registration database is being finalized.'
+      }
+    }
+
     const result = mockStorage.bookSlot({
       studentId,
       date: slot.date,
@@ -79,6 +124,39 @@ export function StudentPage() {
         onRefresh={triggerSync}
         label="Student Directory Live Sync"
       />
+
+      {!isDevMockAuthEnabled && (
+        <div
+          style={{
+            backgroundColor: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: '#1e40af',
+            padding: '0.85rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1rem',
+            fontSize: '0.9rem',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>Staging Deployment Notice:</strong> Student slot booking is currently disabled while the master student registration database is being verified by the university placement office. You may view the schedule and test portal infrastructure.
+        </div>
+      )}
+
+      {syncError && (
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '0.65rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1rem',
+            fontSize: '0.85rem',
+          }}
+        >
+          <strong>Sync Notice:</strong> {syncError} (Retrying automatically)
+        </div>
+      )}
 
       <div className="page-heading">
         <p className="eyebrow">GITAM University • Placements 2026</p>
