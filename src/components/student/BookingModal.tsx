@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { BookingConfirmation, SlotWithStatus, Student } from '../../types'
+import type { BookingConfirmation, SlotWithStatus } from '../../types'
 import { Modal } from '../common/Modal'
 import { getDisplayDate } from '../../utils/schedule'
 import { useAuth } from '../../hooks/useAuth'
@@ -8,7 +8,6 @@ interface BookingModalProps {
   isOpen: boolean
   onClose: () => void
   slot: SlotWithStatus | null
-  students: Student[]
   onConfirmBooking: (studentId: string, slot: SlotWithStatus) => {
     success: boolean
     message: string
@@ -20,16 +19,11 @@ export function BookingModal({
   isOpen,
   onClose,
   slot,
-  students,
   onConfirmBooking,
 }: BookingModalProps) {
   const { user } = useAuth()
-  const initialStudentId = user?.studentProfile?.studentId ||
-    students.find((s) => s.bookingStatus !== 'Booked')?.studentId ||
-    students[0]?.studentId ||
-    ''
+  const student = user?.studentProfile
 
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(initialStudentId)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [confirmationReceipt, setConfirmationReceipt] = useState<BookingConfirmation | null>(null)
@@ -37,12 +31,17 @@ export function BookingModal({
   if (!slot) return null
 
   const handleBooking = () => {
+    if (!student) {
+      setErrorMessage('You must be signed in as a registered student to book an interview slot.')
+      return
+    }
+
     setErrorMessage(null)
     setIsSubmitting(true)
 
-    // Simulate backend network latency (300ms)
+    // Execute booking bound strictly to authenticated student ID
     setTimeout(() => {
-      const result = onConfirmBooking(selectedStudentId, slot)
+      const result = onConfirmBooking(student.studentId, slot)
       setIsSubmitting(false)
 
       if (result.success && result.confirmation) {
@@ -50,7 +49,7 @@ export function BookingModal({
       } else {
         setErrorMessage(result.message)
       }
-    }, 300)
+    }, 200)
   }
 
   const handleClose = () => {
@@ -58,8 +57,6 @@ export function BookingModal({
     setErrorMessage(null)
     onClose()
   }
-
-  const selectedStudent = students.find((s) => s.studentId === selectedStudentId)
 
   return (
     <Modal
@@ -82,7 +79,7 @@ export function BookingModal({
               Your interview slot has been booked.
             </p>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem' }}>
-              Confirmation details have been recorded in the system. Timezone: Indian Standard Time (IST).
+              Confirmation details have been recorded in the database. Timezone: Indian Standard Time (IST).
             </p>
           </div>
 
@@ -109,6 +106,10 @@ export function BookingModal({
               <strong>{confirmationReceipt.studentName}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--portal-text-muted)' }}>Student ID:</span>
+              <strong>{confirmationReceipt.studentId}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--portal-text-muted)' }}>GITAM Email:</span>
               <strong>{confirmationReceipt.gitamEmail}</strong>
             </div>
@@ -117,15 +118,11 @@ export function BookingModal({
               <strong>{confirmationReceipt.displayDate}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--portal-text-muted)' }}>Start Time:</span>
-              <strong>{confirmationReceipt.displayStart || confirmationReceipt.startTime}</strong>
+              <span style={{ color: 'var(--portal-text-muted)' }}>Time Slot:</span>
+              <strong>{confirmationReceipt.displayStart || confirmationReceipt.startTime} – {confirmationReceipt.displayEnd || confirmationReceipt.endTime} IST</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--portal-text-muted)' }}>End Time:</span>
-              <strong>{confirmationReceipt.displayEnd || confirmationReceipt.endTime}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--portal-text-muted)' }}>Status:</span>
+              <span style={{ color: 'var(--portal-text-muted)' }}>Booking Status:</span>
               <span className="status-badge badge-approved">{confirmationReceipt.status}</span>
             </div>
           </div>
@@ -138,6 +135,7 @@ export function BookingModal({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Slot Metadata Summary */}
           <div
             style={{
               background: '#f8faf9',
@@ -155,11 +153,12 @@ export function BookingModal({
               {getDisplayDate(slot.date)}
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--portal-primary)' }}>
-              {slot.displayStart} – {slot.displayEnd} (10 Minutes)
+              {slot.displayStart} – {slot.displayEnd} (10 Minutes, IST)
             </div>
           </div>
 
-          {user?.role === 'student' && user.studentProfile ? (
+          {/* Bound Authenticated Student Details */}
+          {student ? (
             <div
               style={{
                 backgroundColor: 'var(--portal-primary-light)',
@@ -169,39 +168,31 @@ export function BookingModal({
               }}
             >
               <div style={{ fontSize: '0.8rem', color: 'var(--portal-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
-                Authenticated Student:
+                Booking Candidate (Verified Identity):
               </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--portal-text)' }}>
-                {user.studentProfile.fullName}
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--portal-text)', marginTop: '0.25rem' }}>
+                {student.fullName}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)', marginTop: '0.2rem' }}>
+                ID: <strong>{student.studentId}</strong> | Roll: <strong>{student.rollNumber}</strong> | Branch: <strong>{student.branch}</strong>
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
-                {user.studentProfile.gitamEmail} | Roll: {user.studentProfile.rollNumber} | {user.studentProfile.branch}
+                Email: {student.gitamEmail}
               </div>
             </div>
           ) : (
-            <>
-              <div className="filter-input-group">
-                <label htmlFor="student-selector">Select Mock Student (Simulating Authenticated Student):</label>
-                <select
-                  id="student-selector"
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                >
-                  {students.map((s) => (
-                    <option key={s.studentId} value={s.studentId}>
-                      {s.fullName} ({s.gitamEmail}) — {s.bookingStatus === 'Booked' ? '[Already Booked]' : '[Eligible]'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedStudent && (
-                <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
-                  Student ID: <strong>{selectedStudent.studentId}</strong> | Branch:{' '}
-                  <strong>{selectedStudent.branch}</strong>
-                </div>
-              )}
-            </>
+            <div
+              style={{
+                backgroundColor: 'var(--status-rejected-bg)',
+                border: '1px solid #f8b4b4',
+                color: 'var(--status-rejected-text)',
+                padding: '0.75rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.875rem',
+              }}
+            >
+              <strong>Access Restriction:</strong> Only verified registered students can reserve an interview slot.
+            </div>
           )}
 
           {errorMessage && (
@@ -227,7 +218,7 @@ export function BookingModal({
               paddingTop: '0.5rem',
             }}
           >
-            <em>Note (Simulation Mode):</em> Real-world authentication and Google Apps Script lock service will be enforced in Phase 3 & 4. One active booking per student rule is strictly validated. All slot times are Asia/Kolkata (IST).
+            <em>Policy:</em> Each student is strictly permitted exactly one active interview reservation. Timezone: Asia/Kolkata (IST).
           </div>
 
           <div className="modal-footer">
@@ -238,9 +229,9 @@ export function BookingModal({
               type="button"
               className="btn-book-slot"
               onClick={handleBooking}
-              disabled={isSubmitting || !selectedStudentId}
+              disabled={isSubmitting || !student}
             >
-              {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+              {isSubmitting ? 'Confirming Reservation...' : 'Confirm Reservation'}
             </button>
           </div>
         </div>

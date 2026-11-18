@@ -19,36 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Resolve user role & profile based on email
-  const resolveUserFromEmail = (email: string, id: string): AuthUser => {
-    const trimmedEmail = email.trim().toLowerCase()
-
-    // 1. Check if user is in Admin allowlist
-    if (isEmailAuthorizedAdmin(trimmedEmail)) {
-      return {
-        id,
-        email: trimmedEmail,
-        role: 'admin',
-      }
-    }
-
-    // 2. Check if user is registered in the Student Database
-    const matchedStudent = mockStorage.getStudentByEmail(trimmedEmail)
-    if (matchedStudent) {
-      return {
-        id,
-        email: trimmedEmail,
-        role: 'student',
-        studentProfile: matchedStudent,
-      }
-    }
-
-    // 3. Authenticated but unregistered in student database
-    return {
-      id,
-      email: trimmedEmail,
-      role: 'unregistered',
-    }
+  // Resolve user role & profile based on identifier (email or studentId)
+  const resolveStudentFromIdentifier = (identifier: string) => {
+    const cleanId = identifier.trim().toLowerCase()
+    const all = mockStorage.getAllStudents()
+    return all.find(
+      (s) =>
+        s.studentId.toLowerCase() === cleanId ||
+        s.gitamEmail.toLowerCase() === cleanId ||
+        s.personalEmail.toLowerCase() === cleanId,
+    )
   }
 
   // Restore session on mount
@@ -61,11 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data } = await supabase.auth.getSession()
           if (data.session?.user?.email) {
-            const resolved = resolveUserFromEmail(
-              data.session.user.email,
-              data.session.user.id,
-            )
-            setUser(resolved)
+            const email = data.session.user.email.toLowerCase()
+            if (isEmailAuthorizedAdmin(email)) {
+              setUser({
+                id: data.session.user.id,
+                email,
+                role: 'admin',
+              })
+            } else {
+              const matchedStudent = resolveStudentFromIdentifier(email)
+              if (matchedStudent) {
+                setUser({
+                  id: data.session.user.id,
+                  email: matchedStudent.gitamEmail,
+                  role: 'student',
+                  studentProfile: matchedStudent,
+                })
+              } else {
+                setUser({
+                  id: data.session.user.id,
+                  email,
+                  role: 'unregistered',
+                })
+              }
+            }
             setIsLoading(false)
             return
           }
@@ -74,17 +73,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // B. Check local session storage (for dev & mock mode)
+      // B. Check local session storage (dev & verified simulation)
       try {
         const cached = localStorage.getItem(AUTH_STORAGE_KEY)
         if (cached) {
           const parsed = JSON.parse(cached)
-          if (parsed?.email) {
-            const resolved = resolveUserFromEmail(
-              parsed.email,
-              parsed.id || 'sim-user',
-            )
-            setUser(resolved)
+          if (parsed?.role === 'admin' && isEmailAuthorizedAdmin(parsed.email)) {
+            setUser({
+              id: parsed.id || 'admin-session',
+              email: parsed.email,
+              role: 'admin',
+            })
+          } else if (parsed?.role === 'student' && parsed?.studentProfile?.studentId) {
+            // Re-fetch fresh student profile from storage to guarantee data freshness
+            const freshStudent = mockStorage.getStudentById(parsed.studentProfile.studentId)
+            if (freshStudent) {
+              setUser({
+                id: parsed.id || freshStudent.studentId,
+                email: freshStudent.gitamEmail,
+                role: 'student',
+                studentProfile: freshStudent,
+              })
+            }
           }
         }
       } catch {
@@ -97,19 +107,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession()
   }, [])
 
-  // Login handler
-  const login = async (email: string, password?: string): Promise<boolean> => {
+  // Strict Login handler with credential and password validation
+  const login = async (identifier: string, password?: string): Promise<boolean> => {
     setIsLoading(true)
     setError(null)
 
-    const cleanEmail = email.trim().toLowerCase()
+    const cleanIdentifier = identifier.trim()
+    const cleanPassword = password ? password.trim() : ''
 
-    // Real Supabase Auth path (if configured and password provided)
-    if (isSupabaseConfigured && supabase && password) {
+    // 1. Password must be supplied
+    if (!cleanPassword) {
+      setError('Password is required. Please enter your credentials.')
+      setIsLoading(false)
+      return false
+    }
+
+    // 2. Real Supabase Auth path (if configured)
+    if (isSupabaseConfigured && supabase) {
       try {
         const { data, error: sbError } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
+          email: cleanIdentifier.toLowerCase(),
+          password: cleanPassword,
         })
 
         if (sbError) {
@@ -119,11 +137,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.user?.email) {
-          const resolved = resolveUserFromEmail(data.user.email, data.user.id)
-          setUser(resolved)
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(resolved))
+          const userEmail = data.user.email.toLowerCase()
+          if (isEmailAuthorizedAdmin(userEmail)) {
+            const adminUser: AuthUser = {
+              id: data.user.id,
+              email: userEmail,
+              role: 'admin',
+            }
+            setUser(adminUser)
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser))
+            setIsLoading(false)
+            return true
+          }
+
+          const matchedStudent = resolveStudentFromIdentifier(userEmail)
+          if (matchedStudent) {
+            const studentUser: AuthUser = {
+              id: data.user.id,
+              email: matchedStudent.gitamEmail,
+              role: 'student',
+              studentProfile: matchedStudent,
+            }
+            setUser(studentUser)
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(studentUser))
+            setIsLoading(false)
+            return true
+          }
+
+          const unregUser: AuthUser = {
+            id: data.user.id,
+            email: userEmail,
+            role: 'unregistered',
+          }
+          setUser(unregUser)
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(unregUser))
           setIsLoading(false)
-          return true
+          return false
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Authentication failed.'
@@ -133,12 +182,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Simulation / Quick-login path (for dev & testing phase 3)
-    const simulatedId = `USR-${Date.now().toString(36)}`
-    const resolved = resolveUserFromEmail(cleanEmail, simulatedId)
-    setUser(resolved)
+    // 3. Dedicated Database & Admin Authentication Path
+    // A. Check Admin credentials
+    const lowerIdent = cleanIdentifier.toLowerCase()
+    if (isEmailAuthorizedAdmin(lowerIdent)) {
+      if (cleanPassword !== 'Admin@Gitam2026') {
+        setError('Invalid password for administrator account. Expected password for admin: Admin@Gitam2026')
+        setIsLoading(false)
+        return false
+      }
+
+      const adminUser: AuthUser = {
+        id: `ADMIN-${Date.now()}`,
+        email: lowerIdent,
+        role: 'admin',
+      }
+      setUser(adminUser)
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser))
+      } catch {
+        // ignore
+      }
+      setIsLoading(false)
+      return true
+    }
+
+    // B. Check Registered Student credentials (lookup by Student ID or Email)
+    const matchedStudent = resolveStudentFromIdentifier(cleanIdentifier)
+    if (!matchedStudent) {
+      setError(`No student record found matching "${cleanIdentifier}". Only registered students in the database can sign in.`)
+      setIsLoading(false)
+      return false
+    }
+
+    // Verify student password
+    const expectedPassword = matchedStudent.password || 'Student@Gitam2026'
+    if (cleanPassword !== expectedPassword) {
+      setError(`Incorrect password for student ${matchedStudent.fullName} (${matchedStudent.studentId}). Expected: Student@Gitam2026`)
+      setIsLoading(false)
+      return false
+    }
+
+    // Grant student session bound permanently to their student record
+    const studentUser: AuthUser = {
+      id: matchedStudent.studentId,
+      email: matchedStudent.gitamEmail,
+      role: 'student',
+      studentProfile: matchedStudent,
+    }
+    setUser(studentUser)
     try {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(resolved))
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(studentUser))
     } catch {
       // ignore
     }

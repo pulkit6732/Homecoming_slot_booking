@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { isSupabaseConfigured } from '../../services/supabaseClient'
 import '../../styles/portal.css'
 
 interface LocationState {
@@ -11,7 +10,7 @@ interface LocationState {
 }
 
 export function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { login, error, clearError } = useAuth()
@@ -23,26 +22,14 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!identifier.trim() || !password) return
 
     setIsSubmitting(true)
-    const success = await login(email, password)
+    const success = await login(identifier, password)
     setIsSubmitting(false)
 
     if (success) {
-      navigate(redirectPath, { replace: true })
-    }
-  }
-
-  const handleSelectPreconfiguredUser = async (testEmail: string) => {
-    clearError()
-    setEmail(testEmail)
-    setIsSubmitting(true)
-    const success = await login(testEmail)
-    setIsSubmitting(false)
-
-    if (success) {
-      if (testEmail === 'admin@gitam.in') {
+      if (identifier.toLowerCase().includes('admin') || identifier.toLowerCase().includes('placement')) {
         navigate('/admin', { replace: true })
       } else {
         navigate(redirectPath, { replace: true })
@@ -50,13 +37,19 @@ export function LoginPage() {
     }
   }
 
+  const handlePreFill = (testId: string, testPass: string) => {
+    clearError()
+    setIdentifier(testId)
+    setPassword(testPass)
+  }
+
   return (
-    <div style={{ maxWidth: '480px', margin: '2rem auto', padding: '0 1rem' }}>
+    <div style={{ maxWidth: '520px', margin: '2rem auto', padding: '0 1rem' }}>
       <div className="page-heading" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <p className="eyebrow">GITAM Authentication Service</p>
         <h1 style={{ fontSize: '1.85rem' }}>Sign In to Interview Portal</h1>
         <p style={{ fontSize: '0.9rem' }}>
-          Registered students and authorized administrators must authenticate to access scheduling records. Timezone: Asia/Kolkata (IST).
+          Registered students from the database and authorized administrators authenticate with dedicated credentials. Timezone: Asia/Kolkata (IST).
         </p>
       </div>
 
@@ -71,28 +64,27 @@ export function LoginPage() {
       >
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="filter-input-group">
-            <label htmlFor="login-email">GITAM Email Address:</label>
+            <label htmlFor="login-identifier">Student ID or University Email:</label>
             <input
-              id="login-email"
-              type="email"
+              id="login-identifier"
+              type="text"
               required
-              placeholder="e.g. asharma14@gitam.in"
-              value={email}
+              placeholder="e.g. GITAM-2026-005 or asharma14@gitam.in"
+              value={identifier}
               onChange={(e) => {
                 clearError()
-                setEmail(e.target.value)
+                setIdentifier(e.target.value)
               }}
             />
           </div>
 
           <div className="filter-input-group">
-            <label htmlFor="login-password">
-              Password {isSupabaseConfigured ? '(Required)' : '(Optional in Dev Simulation)'}:
-            </label>
+            <label htmlFor="login-password">Password (Required):</label>
             <input
               id="login-password"
               type="password"
-              placeholder="Enter your password"
+              required
+              placeholder="Enter your account password"
               value={password}
               onChange={(e) => {
                 clearError()
@@ -110,9 +102,10 @@ export function LoginPage() {
                 padding: '0.75rem',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '0.85rem',
+                lineHeight: 1.5,
               }}
             >
-              Authentication Error: {error}
+              <strong>Authentication Error:</strong> {error}
             </div>
           )}
 
@@ -120,9 +113,9 @@ export function LoginPage() {
             type="submit"
             className="btn-book-slot"
             style={{ width: '100%', padding: '0.75rem', fontSize: '1rem' }}
-            disabled={isSubmitting || !email.trim()}
+            disabled={isSubmitting || !identifier.trim() || !password}
           >
-            {isSubmitting ? 'Authenticating...' : 'Sign In'}
+            {isSubmitting ? 'Verifying Credentials...' : 'Sign In'}
           </button>
         </form>
 
@@ -133,41 +126,54 @@ export function LoginPage() {
             borderTop: '1px solid var(--portal-border)',
           }}
         >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--portal-text-muted)', display: 'block', marginBottom: '0.75rem' }}>
-            Phase 3 Test Accounts (Click to Test):
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--portal-text-muted)',
+              display: 'block',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Pre-Configured Registered Credentials (Click to Fill Form):
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             <button
               type="button"
               className="btn-secondary"
               style={{ textAlign: 'left', fontSize: '0.85rem' }}
-              onClick={() => handleSelectPreconfiguredUser('asharma14@gitam.in')}
+              onClick={() => handlePreFill('GITAM-2026-005', 'Student@Gitam2026')}
             >
-              <strong>Aarav Sharma</strong> (asharma14@gitam.in) — Registered Student [CSE]
+              <div><strong>Sneha Patel</strong> (Unbooked Student)</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
+                ID: GITAM-2026-005 | Email: snair18@gitam.in | Pass: Student@Gitam2026
+              </div>
             </button>
+
             <button
               type="button"
               className="btn-secondary"
               style={{ textAlign: 'left', fontSize: '0.85rem' }}
-              onClick={() => handleSelectPreconfiguredUser('areddy22@gitam.in')}
+              onClick={() => handlePreFill('asharma14@gitam.in', 'Student@Gitam2026')}
             >
-              <strong>Ananya Reddy</strong> (areddy22@gitam.in) — Registered Student [ECE]
+              <div><strong>Aarav Sharma</strong> (Booked Student)</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
+                ID: GITAM-2026-001 | Email: asharma14@gitam.in | Pass: Student@Gitam2026
+              </div>
             </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ textAlign: 'left', fontSize: '0.85rem' }}
-              onClick={() => handleSelectPreconfiguredUser('unknown.candidate@gmail.com')}
-            >
-              <strong>Unregistered Candidate</strong> (unknown.candidate@gmail.com) — Ineligible
-            </button>
+
             <button
               type="button"
               className="btn-secondary"
               style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
-              onClick={() => handleSelectPreconfiguredUser('admin@gitam.in')}
+              onClick={() => handlePreFill('admin@gitam.in', 'Admin@Gitam2026')}
             >
-              <strong>Authorized Administrator</strong> (admin@gitam.in) — Placement Office
+              <div><strong>University Placement Administrator</strong></div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
+                Email: admin@gitam.in | Pass: Admin@Gitam2026
+              </div>
             </button>
           </div>
         </div>

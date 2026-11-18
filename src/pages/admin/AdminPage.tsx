@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { SearchFilters, Student } from '../../types'
 import { ELIGIBLE_DATES } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
+import { useLiveSync } from '../../hooks/useLiveSync'
+import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
 import { DateSelector } from '../../components/student/DateSelector'
 import { DailySummary } from '../../components/admin/DailySummary'
 import { FilterBar } from '../../components/admin/FilterBar'
@@ -22,7 +24,9 @@ export function AdminPage() {
       return ELIGIBLE_DATES[0].date
     }
   })
-  const [revision, setRevision] = useState<number>(0)
+
+  // Near-real-time synchronization (5-10s polling, tab focus, multi-tab sync)
+  const { revision, lastUpdated, isSyncing, triggerSync } = useLiveSync({ pollIntervalMs: 8000 })
 
   // Active Review Action Modal state
   const [reviewModalStudent, setReviewModalStudent] = useState<Student | null>(null)
@@ -65,6 +69,8 @@ export function AdminPage() {
   }
 
   // Derive students and daily summary directly based on selectedDate and revision
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  revision // reactive dependency
   const allStudents = mockStorage.getAllStudents()
   const daySummary = mockStorage.getDaySummary(selectedDate)
 
@@ -88,7 +94,7 @@ export function AdminPage() {
   const handleResetAllMockData = () => {
     if (window.confirm('Reset all mock students, bookings, and review statuses?')) {
       mockStorage.resetToInitial()
-      setRevision((prev) => prev + 1)
+      void triggerSync()
     }
   }
 
@@ -101,25 +107,25 @@ export function AdminPage() {
   // Confirm Approve
   const handleConfirmApprove = (studentId: string, comment: string) => {
     mockStorage.approveStudent(studentId, comment, 'Administrator')
-    setRevision((prev) => prev + 1)
+    void triggerSync()
   }
 
   // Confirm Reject
   const handleConfirmReject = (studentId: string, reason: string) => {
     mockStorage.rejectStudent(studentId, reason, 'Administrator')
-    setRevision((prev) => prev + 1)
+    void triggerSync()
   }
 
   // Confirm Flag
   const handleConfirmFlag = (studentId: string, reason: string) => {
     mockStorage.flagStudent(studentId, reason, 'Administrator')
-    setRevision((prev) => prev + 1)
+    void triggerSync()
   }
 
   // Confirm Clear Flag
   const handleConfirmClearFlag = (studentId: string) => {
     mockStorage.clearFlag(studentId)
-    setRevision((prev) => prev + 1)
+    void triggerSync()
   }
 
   // Filtered students for the table
@@ -133,14 +139,21 @@ export function AdminPage() {
 
   return (
     <div className="admin-portal-view">
+      {/* Real-time synchronization indicator */}
+      <LiveSyncIndicator
+        lastUpdated={lastUpdated}
+        isSyncing={isSyncing}
+        onRefresh={triggerSync}
+        label="Admin Dashboard Live Sync"
+      />
+
       {/* Simulation Banner */}
       <div className="simulation-pill-banner">
         <span>
-          <strong>Phase 2 Administrator Environment</strong> — Real-time mock data & interview review dashboard.
-          {revision > 0 && ` (Updated: Revision #${revision})`}
+          <strong>Phase 5 Active</strong> — Real-time Google Sheets 3-tab architecture and near-real-time polling.
         </span>
         <button type="button" className="btn-reset-mock" onClick={handleResetAllMockData}>
-          Reset Fixture Data
+          Reset Data
         </button>
       </div>
 
@@ -158,54 +171,48 @@ export function AdminPage() {
           type="button"
           className={`admin-subnav-btn ${activeTab === 'SCHEDULE' ? 'active' : ''}`}
           onClick={() => setActiveTab('SCHEDULE')}
+          role="tab"
+          aria-selected={activeTab === 'SCHEDULE'}
         >
-          Schedule View (Date-Based)
+          Daily Schedule & Student Directory
         </button>
-
         <button
           type="button"
           className={`admin-subnav-btn ${activeTab === 'FLAGGED' ? 'active' : ''}`}
           onClick={() => setActiveTab('FLAGGED')}
+          role="tab"
+          aria-selected={activeTab === 'FLAGGED'}
         >
-          Flagged Profiles
-          {flaggedStudents.length > 0 && <span className="counter-bubble">{flaggedStudents.length}</span>}
+          Flagged for Review ({flaggedStudents.length})
         </button>
-
         <button
           type="button"
           className={`admin-subnav-btn ${activeTab === 'UNBOOKED' ? 'active' : ''}`}
           onClick={() => setActiveTab('UNBOOKED')}
+          role="tab"
+          aria-selected={activeTab === 'UNBOOKED'}
         >
-          Unbooked Candidates
-          <span className="counter-bubble">{unbookedStudents.length}</span>
+          Unbooked Candidates ({unbookedStudents.length})
         </button>
       </div>
 
+      {/* TAB 1: Main Schedule View */}
       {activeTab === 'SCHEDULE' && (
         <>
-          {/* Date Selector Tabs */}
+          {/* Date Selector */}
           <DateSelector selectedDate={selectedDate} onSelectDate={handleSelectDate} />
 
-          {/* Daily Metric Summary Cards */}
-          {daySummary && <DailySummary summary={daySummary} />}
+          {/* 7 Summary Cards */}
+          <DailySummary summary={daySummary} />
 
-          {/* Search & Multi-Field Filters */}
+          {/* Filter Bar */}
           <FilterBar
             filters={filters}
             onFilterChange={handleFilterChange}
             onResetFilters={handleResetFilters}
           />
 
-          {/* Booked Students Table with Expandable Profiles and Pagination */}
-          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--portal-text)' }}>
-              Interview Reservations for {daySummary?.displayDate}
-            </h2>
-            <span style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
-              Total Booked on Date: <strong>{bookedStudentsOnDate.length}</strong> (showing {filteredBookedStudents.length} matching)
-            </span>
-          </div>
-
+          {/* Student Table with Expandable Dossiers */}
           <StudentTable
             students={filteredBookedStudents}
             onTriggerReviewAction={handleTriggerReviewAction}
@@ -213,6 +220,7 @@ export function AdminPage() {
         </>
       )}
 
+      {/* TAB 2: Flagged Students Section */}
       {activeTab === 'FLAGGED' && (
         <FlaggedStudentsSection
           flaggedStudents={flaggedStudents}
@@ -220,16 +228,17 @@ export function AdminPage() {
         />
       )}
 
+      {/* TAB 3: Unbooked Students Section */}
       {activeTab === 'UNBOOKED' && (
         <UnbookedStudentsSection unbookedStudents={unbookedStudents} />
       )}
 
-      {/* Review Action Modal Dialog */}
+      {/* Action Confirmation Modal */}
       <ReviewActionModal
-        isOpen={reviewModalStudent !== null && reviewModalAction !== null}
+        isOpen={reviewModalAction !== null}
         onClose={() => {
-          setReviewModalStudent(null)
           setReviewModalAction(null)
+          setReviewModalStudent(null)
         }}
         student={reviewModalStudent}
         actionType={reviewModalAction}

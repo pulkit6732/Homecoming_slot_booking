@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
+    "test": "node --experimental-strip-types src/utils/verifyRules.ts && node --experimental-strip-types src/utils/verifyStorage.ts && node --experimental-strip-types src/utils/verifyAuth.ts && node --experimental-strip-types src/utils/verifyAppsScript.ts && node --experimental-strip-types src/utils/verifySheetsSync.ts && node --experimental-strip-types src/utils/stressTest.ts",
     "preview": "vite preview"
   },
   "dependencies": {

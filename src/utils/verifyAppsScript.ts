@@ -119,7 +119,8 @@ console.assert(student?.bookingStatus === 'Booked', 'bookingStatus must still re
 // Test 7: Admin Privileges Allowlist
 console.log('Running Test 7: Admin Allowlist Authorization Check...');
 console.assert(isEmailAuthorizedAdmin('admin@gitam.in') === true, 'admin@gitam.in must be authorized');
-console.assert(isEmailAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === true, 'noreply email must be authorized');
+console.assert(isEmailAuthorizedAdmin('placement@gitam.in') === true, 'placement@gitam.in must be authorized');
+console.assert(isEmailAuthorizedAdmin('112525884+pulkit6732@users.noreply.github.com') === false, 'Personal noreply email is not an app admin');
 console.assert(isEmailAuthorizedAdmin('student@gitam.in') === false, 'student@gitam.in must NOT be authorized');
 console.assert(isEmailAuthorizedAdmin('attacker@malicious.com') === false, 'external email must NOT be authorized');
 
