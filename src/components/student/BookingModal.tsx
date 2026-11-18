@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { BookingConfirmation, SlotWithStatus, Student } from '../../types'
 import { Modal } from '../common/Modal'
 import { getDisplayDate } from '../../utils/schedule'
+import { useAuth } from '../../hooks/useAuth'
 
 interface BookingModalProps {
   isOpen: boolean
@@ -22,9 +23,13 @@ export function BookingModal({
   students,
   onConfirmBooking,
 }: BookingModalProps) {
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(
-    students.find((s) => s.bookingStatus !== 'Booked')?.studentId || students[0]?.studentId || '',
-  )
+  const { user } = useAuth()
+  const initialStudentId = user?.studentProfile?.studentId ||
+    students.find((s) => s.bookingStatus !== 'Booked')?.studentId ||
+    students[0]?.studentId ||
+    ''
+
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(initialStudentId)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [confirmationReceipt, setConfirmationReceipt] = useState<BookingConfirmation | null>(null)
@@ -154,26 +159,49 @@ export function BookingModal({
             </div>
           </div>
 
-          <div className="filter-input-group">
-            <label htmlFor="student-selector">Select Mock Student (Simulating Authenticated Student):</label>
-            <select
-              id="student-selector"
-              value={selectedStudentId}
-              onChange={(e) => setSelectedStudentId(e.target.value)}
+          {user?.role === 'student' && user.studentProfile ? (
+            <div
+              style={{
+                backgroundColor: 'var(--portal-primary-light)',
+                border: '1px solid #b7dfcb',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.85rem 1rem',
+              }}
             >
-              {students.map((s) => (
-                <option key={s.studentId} value={s.studentId}>
-                  {s.fullName} ({s.gitamEmail}) — {s.bookingStatus === 'Booked' ? '[Already Booked]' : '[Eligible]'}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedStudent && (
-            <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
-              Student ID: <strong>{selectedStudent.studentId}</strong> | Branch:{' '}
-              <strong>{selectedStudent.branch}</strong>
+              <div style={{ fontSize: '0.8rem', color: 'var(--portal-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Authenticated Student:
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--portal-text)' }}>
+                {user.studentProfile.fullName}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
+                {user.studentProfile.gitamEmail} | Roll: {user.studentProfile.rollNumber} | {user.studentProfile.branch}
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="filter-input-group">
+                <label htmlFor="student-selector">Select Mock Student (Simulating Authenticated Student):</label>
+                <select
+                  id="student-selector"
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                >
+                  {students.map((s) => (
+                    <option key={s.studentId} value={s.studentId}>
+                      {s.fullName} ({s.gitamEmail}) — {s.bookingStatus === 'Booked' ? '[Already Booked]' : '[Eligible]'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedStudent && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--portal-text-muted)' }}>
+                  Student ID: <strong>{selectedStudent.studentId}</strong> | Branch:{' '}
+                  <strong>{selectedStudent.branch}</strong>
+                </div>
+              )}
+            </>
           )}
 
           {errorMessage && (

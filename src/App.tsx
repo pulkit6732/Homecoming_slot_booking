@@ -1,22 +1,44 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { AuthProvider } from './context/AuthContext'
+import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { AppLayout } from './layouts/AppLayout'
 import { AdminPage } from './pages/admin/AdminPage'
 import { StudentPage } from './pages/student/StudentPage'
+import { LoginPage } from './pages/auth/LoginPage'
+import { UnauthorizedPage } from './pages/auth/UnauthorizedPage'
 
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/student" replace />} />
-            <Route path="student" element={<StudentPage />} />
-            <Route path="admin" element={<AdminPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<Navigate to="/student" replace />} />
+              <Route path="login" element={<LoginPage />} />
+              <Route path="unauthorized" element={<UnauthorizedPage />} />
+              <Route
+                path="student"
+                element={
+                  <ProtectedRoute>
+                    <StudentPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <AdminPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </ErrorBoundary>
   )
 }
