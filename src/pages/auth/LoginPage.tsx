@@ -10,10 +10,9 @@ interface LocationState {
 }
 
 export function LoginPage() {
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { user, login, error, clearError } = useAuth()
+  const { user, loginStudentByEmail, error, clearError } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -35,10 +34,11 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!identifier.trim() || !password) return
+    if (!email.trim() || isSubmitting) return
 
+    clearError()
     setIsSubmitting(true)
-    await login(identifier, password)
+    await loginStudentByEmail(email.trim())
     setIsSubmitting(false)
   }
 
@@ -52,10 +52,14 @@ export function LoginPage() {
         />
       </div>
       <div className="page-heading" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <p className="eyebrow">GITAM Candidate Access • Placements 2026</p>
-        <h1 style={{ fontSize: '1.85rem' }}>Student Interview Portal Login</h1>
-        <p style={{ fontSize: '0.9rem' }}>
-          Sign in with your verified institutional credentials to view slot schedules and reserve your interview. Timezone: Asia/Kolkata (IST).
+        <p className="eyebrow" style={{ color: '#FDB813', fontWeight: 700 }}>
+          GITAM Candidate Access • Placements 2026
+        </p>
+        <h1 style={{ fontSize: '1.85rem', color: '#FFFFFF', fontWeight: 700 }}>
+          Student Interview Portal Login
+        </h1>
+        <p style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>
+          Enter your registered institutional email or personal Gmail to view available slots and manage your interview schedule. No password or OTP code required. Timezone: Asia/Kolkata (IST).
         </p>
       </div>
 
@@ -71,31 +75,26 @@ export function LoginPage() {
       >
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="filter-input-group">
-            <label htmlFor="login-identifier">Student ID or Institutional Email:</label>
+            <label htmlFor="login-email" style={{ fontWeight: 600, color: 'var(--portal-text)' }}>
+              Registered Student Email Address:
+            </label>
             <input
-              id="login-identifier"
-              type="text"
+              id="login-email"
+              type="email"
               required
-              placeholder="e.g. student@gitam.in"
-              value={identifier}
+              autoComplete="email"
+              placeholder="e.g. candidate@gitam.in or your registered Gmail"
+              value={email}
               onChange={(e) => {
                 clearError()
-                setIdentifier(e.target.value)
+                setEmail(e.target.value)
               }}
-            />
-          </div>
-
-          <div className="filter-input-group">
-            <label htmlFor="login-password">Password (Required):</label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              placeholder="Enter your student account password"
-              value={password}
-              onChange={(e) => {
-                clearError()
-                setPassword(e.target.value)
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.85rem',
+                border: '1px solid var(--portal-border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.95rem',
               }}
             />
           </div>
@@ -108,21 +107,21 @@ export function LoginPage() {
                 color: 'var(--status-rejected-text)',
                 padding: '0.75rem',
                 borderRadius: 'var(--radius-sm)',
-                fontSize: '0.85rem',
+                fontSize: '0.875rem',
                 lineHeight: 1.5,
               }}
             >
-              <strong>Authentication Error:</strong> {error}
+              <strong>Access Notice:</strong> {error}
             </div>
           )}
 
           <button
             type="submit"
             className="btn-book-slot"
-            style={{ width: '100%', padding: '0.75rem', fontSize: '1rem' }}
-            disabled={isSubmitting || !identifier.trim() || !password}
+            style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 700 }}
+            disabled={isSubmitting || !email.trim()}
           >
-            {isSubmitting ? 'Verifying Student Credentials...' : 'Sign In as Student'}
+            {isSubmitting ? 'Checking Registration...' : 'Sign In as Student'}
           </button>
         </form>
 
@@ -134,9 +133,10 @@ export function LoginPage() {
             fontSize: '0.8rem',
             color: 'var(--portal-text-muted)',
             textAlign: 'center',
+            lineHeight: 1.4,
           }}
         >
-          Official institutional login active. Use your verified institutional Google Workspace credentials.
+          Email-only access verification active. Access is granted immediately to email addresses matching active records in the official registration database.
         </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.85rem' }}>

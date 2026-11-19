@@ -11,6 +11,10 @@ import {
   isSupabaseConfigured,
 } from '../services/supabaseClient'
 import { mockStorage } from '../services/mockStorage.ts'
+import { studentLoginByEmail, isLiveBackendConfigured } from '../services/appsScriptClient.ts'
+import { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount } from './designatedAdmins.ts'
+
+export { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount }
 
 const AUTH_STORAGE_KEY = 'gitam_auth_session_v1'
 
@@ -149,50 +153,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 2. Production Build Check: NEVER trust localStorage as authentication authority
-      if (!isDevMockAuthEnabled) {
-        // Clear any lingering dev session key in production
-        try {
-          localStorage.removeItem(AUTH_STORAGE_KEY)
-        } catch {
-          // ignore
-        }
-        setUser(null)
-        setIsLoading(false)
-        return
-      }
-
-      // 3. Isolated Development Mock Mode Session Restoration
+      // 2. Student Email Session or Dev Admin Restoration
       try {
         const cached = localStorage.getItem(AUTH_STORAGE_KEY)
         if (cached) {
           const parsed = JSON.parse(cached)
-          // Anti-tampering check: Never restore admin role from localStorage unless verified against dev admin list
+          // Anti-tampering check: Verify admin role against designated placement administrators or dev admin list
           if (parsed?.role === 'admin') {
             const parsedEmail = String(parsed.email || '').trim().toLowerCase()
-            if (DEV_AUTHORIZED_ADMINS.includes(parsedEmail)) {
+            const designatedAdmin = DESIGNATED_ADMIN_ACCOUNTS.find(
+              (a) =>
+                a.email.toLowerCase() === parsedEmail ||
+                a.username.toLowerCase() === parsedEmail ||
+                a.aliases.some((alias) => alias.toLowerCase() === parsedEmail)
+            )
+            const isDevAdmin = isDevMockAuthEnabled && DEV_AUTHORIZED_ADMINS.includes(parsedEmail)
+
+            if (designatedAdmin || isDevAdmin) {
+              const token =
+                parsed.accessToken ||
+                (designatedAdmin
+                  ? `ADMIN_SESSION_TOKEN_${designatedAdmin.username.toUpperCase()}`
+                  : 'DEV_MOCK_ADMIN_TOKEN')
+
               setUser({
-                id: parsed.id || 'admin-session',
-                email: parsedEmail,
+                id: parsed.id || `admin-${designatedAdmin?.username || parsedEmail}`,
+                email: designatedAdmin ? designatedAdmin.email : parsedEmail,
                 role: 'admin',
+                accessToken: token,
               })
             } else {
-              // Tampered role detected: reject and clear
               localStorage.removeItem(AUTH_STORAGE_KEY)
               setUser(null)
             }
-          } else if (parsed?.role === 'student' && parsed?.studentProfile?.studentId) {
-            const freshStudent = mockStorage.getStudentById(parsed.studentProfile.studentId)
-            if (freshStudent) {
-              setUser({
-                id: freshStudent.studentId,
-                email: freshStudent.gitamEmail,
-                role: 'student',
-                studentProfile: freshStudent,
-              })
-            } else {
-              localStorage.removeItem(AUTH_STORAGE_KEY)
-              setUser(null)
+          } else if (parsed?.role === 'student' && (parsed?.email || parsed?.studentProfile?.studentId)) {
+            const studentEmail = parsed.email || parsed.studentProfile?.gitamEmail
+            if (studentEmail) {
+              if (isLiveBackendConfigured()) {
+                const res = await studentLoginByEmail(studentEmail)
+                if (res.success && res.data) {
+                  setUser({
+                    id: res.data.studentId,
+                    email: res.data.gitamEmail,
+                    role: 'student',
+                    studentProfile: res.data,
+                    accessToken: 'STUDENT_EMAIL_SESSION',
+                  })
+                } else {
+                  localStorage.removeItem(AUTH_STORAGE_KEY)
+                  setUser(null)
+                }
+              } else {
+                const fresh = mockStorage.getStudentByEmail(studentEmail) ||
+                  (parsed.studentProfile?.studentId ? mockStorage.getStudentById(parsed.studentProfile.studentId) : undefined) ||
+                  parsed.studentProfile
+                if (fresh) {
+                  setUser({
+                    id: fresh.studentId,
+                    email: fresh.gitamEmail,
+                    role: 'student',
+                    studentProfile: fresh,
+                    accessToken: 'STUDENT_EMAIL_SESSION',
+                  })
+                } else {
+                  localStorage.removeItem(AUTH_STORAGE_KEY)
+                  setUser(null)
+                }
+              }
             }
           }
         }
@@ -220,7 +247,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    // 1. Supabase Authentication Path (Primary & Production Authority)
+    const lowerIdent = cleanIdentifier.toLowerCase()
+
+    // 1. Designated Administrator Authentication (GMercy, DMoksha, Surya / sreyash)
+    const designatedAdmin = DESIGNATED_ADMIN_ACCOUNTS.find(
+      (a) =>
+        a.username.toLowerCase() === lowerIdent ||
+        a.aliases.some((alias) => alias.toLowerCase() === lowerIdent)
+    )
+
+    if (designatedAdmin) {
+      if (cleanPassword !== designatedAdmin.password) {
+        setError('Invalid administrator username or password.')
+        setIsLoading(false)
+        return false
+      }
+
+      const adminUser: AuthUser = {
+        id: `ADMIN-${designatedAdmin.username.toUpperCase()}`,
+        email: designatedAdmin.email,
+        role: 'admin',
+        accessToken: `ADMIN_SESSION_TOKEN_${designatedAdmin.username.toUpperCase()}`,
+      }
+      setUser(adminUser)
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser))
+      } catch {
+        // ignore
+      }
+      setIsLoading(false)
+      return true
+    }
+
+    // 2. Supabase Authentication Path (Primary & Production Authority if configured)
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error: sbError } = await supabase.auth.signInWithPassword({
@@ -283,16 +342,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 2. Production Mode Block: Disable mock authentication completely in production
+    // Fallback block if neither designated admin nor Supabase nor dev mode:
     if (!isDevMockAuthEnabled) {
-      setError('Mock authentication is disabled in production builds. Institutional authentication via Supabase is required.')
+      setError('Invalid administrator username or password.')
       setIsLoading(false)
       return false
     }
 
     // 3. Isolated Development Mock Authentication (Explicitly enabled dev mode only)
-    const lowerIdent = cleanIdentifier.toLowerCase()
-
     // Dev Admin Check
     if (DEV_AUTHORIZED_ADMINS.includes(lowerIdent)) {
       if (cleanPassword.length < 6) {
@@ -347,6 +404,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }
 
+  // Student Email-Only Login handler
+  // Validates email with backend against the official student database.
+  // If registered: immediately grants student access with verified profile.
+  // If unregistered: returns exact error "This email is not registered. Access denied."
+  // If ambiguous: returns "Multiple registration records match this email address. Please contact the university placement office."
+  //
+  // Note per explicit user requirements: Email-only access does not verify identity/email ownership.
+  const loginStudentByEmail = async (email: string): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    setError(null)
+
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      const msg = 'Please enter a valid email address.'
+      setError(msg)
+      setIsLoading(false)
+      return { success: false, message: msg }
+    }
+
+    const res = await studentLoginByEmail(cleanEmail)
+    let studentRecord: import('../types').Student | undefined = res.success ? res.data : undefined
+
+    // Fallback to local registration database when live backend is unconfigured
+    if (!studentRecord) {
+      const mockRes = mockStorage.studentLoginByEmail(cleanEmail)
+      if (mockRes.success) {
+        studentRecord = mockRes.data
+      } else {
+        const backendErrMsg = !res.success ? res.error?.message : undefined
+        const msg = mockRes.error?.message || backendErrMsg || 'This email is not registered. Access denied.'
+        setError(msg)
+        setIsLoading(false)
+        return { success: false, message: msg }
+      }
+    }
+
+    const studentUser: AuthUser = {
+      id: studentRecord.studentId,
+      email: studentRecord.gitamEmail,
+      role: 'student',
+      studentProfile: studentRecord,
+      accessToken: 'STUDENT_EMAIL_SESSION',
+    }
+
+    setUser(studentUser)
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(studentUser))
+    } catch {
+      // ignore
+    }
+
+    setIsLoading(false)
+    return { success: true }
+  }
+
   // Logout handler
   const logout = async () => {
     setIsLoading(true)
@@ -378,6 +490,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         login,
+        loginStudentByEmail,
         logout,
         clearError,
       }}

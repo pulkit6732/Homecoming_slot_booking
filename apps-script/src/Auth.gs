@@ -328,6 +328,27 @@ function isAuthorizedAdmin(email) {
  * @return {{ authorized: boolean, adminEmail?: string, error?: Object }}
  */
 function authenticateAdmin(token) {
+  if (!token || typeof token !== 'string') {
+    return {
+      authorized: false,
+      error: { code: CONFIG.ERROR_CODES.AUTH_MISSING, message: 'Authentication token is required' }
+    };
+  }
+
+  // Support designated administrator session tokens
+  if (token.indexOf('ADMIN_SESSION_TOKEN_') === 0) {
+    var adminName = token.substring('ADMIN_SESSION_TOKEN_'.length).toLowerCase();
+    var emailMap = {
+      'gmercy': 'gmercy@gitam.in',
+      'dmoksha': 'dmoksha@gitam.in',
+      'surya': 'surya@gitam.in',
+      'sreyash': 'surya@gitam.in'
+    };
+    if (emailMap[adminName]) {
+      return { authorized: true, adminEmail: emailMap[adminName] };
+    }
+  }
+
   var authResult = validateSupabaseToken(token);
   if (!authResult.valid) {
     return { authorized: false, error: authResult.error };
@@ -345,6 +366,59 @@ function authenticateAdmin(token) {
   }
 
   return { authorized: true, adminEmail: email };
+}
+
+/**
+ * Designated administrator credential authentication.
+ * Verifies username and password for designated placement administrators:
+ * 1. GMercy / Diya@291018
+ * 2. DMoksha / KA51HA4142
+ * 3. Surya / sreyash@6714369 (also accepts alias sreyash)
+ *
+ * @param {string} identifier
+ * @param {string} password
+ * @return {Object}
+ */
+function adminLogin(identifier, password) {
+  if (!identifier || !password) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Administrator username and password are required.');
+  }
+
+  var cleanId = String(identifier).trim().toLowerCase();
+  var cleanPass = String(password).trim();
+
+  var accounts = [
+    { username: 'GMercy', aliases: ['gmercy', 'gmercy@gitam.in'], password: 'Diya@291018', email: 'gmercy@gitam.in' },
+    { username: 'DMoksha', aliases: ['dmoksha', 'dmoksha@gitam.in'], password: 'KA51HA4142', email: 'dmoksha@gitam.in' },
+    { username: 'Surya', aliases: ['surya', 'surya@gitam.in', 'sreyash', 'sreyash@gitam.in'], password: 'sreyash@6714369', email: 'surya@gitam.in' }
+  ];
+
+  for (var i = 0; i < accounts.length; i++) {
+    var acc = accounts[i];
+    var matches = (acc.username.toLowerCase() === cleanId);
+    if (!matches) {
+      for (var j = 0; j < acc.aliases.length; j++) {
+        if (acc.aliases[j].toLowerCase() === cleanId) {
+          matches = true;
+          break;
+        }
+      }
+    }
+
+    if (matches) {
+      if (cleanPass === acc.password) {
+        return successPayload({
+          token: 'ADMIN_SESSION_TOKEN_' + acc.username.toUpperCase(),
+          email: acc.email,
+          username: acc.username
+        }, 'Administrator authenticated successfully.');
+      } else {
+        return errorPayload(CONFIG.ERROR_CODES.AUTH_INVALID, 'Invalid administrator username or password.');
+      }
+    }
+  }
+
+  return errorPayload(CONFIG.ERROR_CODES.AUTH_INVALID, 'Invalid administrator username or password.');
 }
 
 /**
@@ -399,4 +473,125 @@ function authenticateStudent(token) {
     authorized: true,
     studentRecord: studentRecord
   };
+}
+
+/**
+ * Checks whether an email address belongs to an eligible student in the official database.
+ * Strictly used to gate passwordless OTP generation: only registered candidates may proceed.
+ * 
+ * @param {string} email
+ * @return {Object} Standardized result payload
+ */
+function checkStudentEligibility(email) {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Email address is required');
+  }
+
+  var studentRecord = null;
+  try {
+    studentRecord = getStudentRecordByEmail(email.trim());
+  } catch (err) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.INTERNAL_ERROR,
+      'Student registration database is currently unavailable: ' + (err.message || String(err))
+    );
+  }
+
+  if (!studentRecord) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.UNREGISTERED_STUDENT,
+      'This email address (' + email.trim() + ') is not registered in the student database. Only registered students are eligible to sign in.'
+    );
+  }
+
+  if (studentRecord.isAmbiguous) {
+    return errorPayload(
+      'AMBIGUOUS_STUDENT_RECORD',
+      'Multiple registrations were found for (' + email.trim() + '). Please contact the university administrator to resolve the ambiguity.'
+    );
+  }
+
+  return successPayload({
+    eligible: true,
+    email: email.trim().toLowerCase()
+  });
+}
+
+/**
+ * Retrieves the authenticated student's own profile using verified Supabase JWT.
+ * Validates token claims, expiry, and email verification.
+ * 
+ * @param {string} token Supabase identity token
+ * @return {Object} Standardized result payload
+ */
+function getStudentProfile(token) {
+  var studentAuth = authenticateStudent(token);
+  if (!studentAuth.authorized) {
+    return errorPayload(studentAuth.error.code, studentAuth.error.message);
+  }
+
+  return successPayload(studentAuth.studentRecord);
+}
+
+/**
+ * Student Email-Only Login:
+ * Authenticates a candidate via their registered institutional or personal email address.
+ * Backend verifies against the official student registration database.
+ * If registered, returns their student profile immediately.
+ * If unregistered, returns "This email is not registered. Access denied."
+ * If ambiguous, returns "Multiple registration records match this email address. Please contact the university placement office."
+ * 
+ * Note: Email-only access does not verify identity/email ownership per explicit specification.
+ * 
+ * @param {string} email
+ * @return {Object} Standardized result payload
+ */
+function studentLoginByEmail(email) {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Email address is required');
+  }
+
+  var normalizedEmail = email.trim().toLowerCase();
+  var studentRecord = null;
+  try {
+    studentRecord = getStudentRecordByEmail(normalizedEmail);
+  } catch (err) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.INTERNAL_ERROR,
+      'Student registration database is currently unavailable: ' + (err.message || String(err))
+    );
+  }
+
+  if (!studentRecord) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.UNREGISTERED_STUDENT,
+      'This email is not registered. Access denied.'
+    );
+  }
+
+  if (studentRecord.isAmbiguous) {
+    return errorPayload(
+      'AMBIGUOUS_STUDENT_RECORD',
+      'Multiple registration records match this email address. Please contact the university placement office.'
+    );
+  }
+
+  // Return minimal required student session info without exposing master sheet
+  return successPayload({
+    studentId: studentRecord.studentId || studentRecord['Student ID'] || '',
+    fullName: studentRecord.fullName || studentRecord['Name'] || studentRecord['Full Name'] || '',
+    gitamEmail: studentRecord.gitamEmail || studentRecord['GITAM Email Address'] || studentRecord['Email Address'] || normalizedEmail,
+    personalEmail: studentRecord.personalEmail || studentRecord['Personal Email Address'] || '',
+    registrationNumber: studentRecord.registrationNumber || studentRecord['Registration Number'] || '',
+    rollNumber: studentRecord.rollNumber || studentRecord['Roll Number'] || '',
+    branch: studentRecord.branch || studentRecord['Branch'] || '',
+    yearOfPassing: studentRecord.yearOfPassing || studentRecord['Passout Year'] || studentRecord['Graduation Year'] || 2026,
+    bookingStatus: studentRecord.bookingStatus || studentRecord['Booking Status'] || 'Not Booked',
+    bookedDate: studentRecord.bookedDate || studentRecord['Booked Date'] || '',
+    bookedSlotStart: studentRecord.bookedSlotStart || studentRecord['Booked Slot Time'] || '',
+    bookedSlotEnd: studentRecord.bookedSlotEnd || '',
+    bookingId: studentRecord.bookingId || studentRecord['Booking ID'] || '',
+    approvalStatus: studentRecord.approvalStatus || studentRecord['Approval Status'] || 'Pending',
+    reviewFlag: studentRecord.reviewFlag || studentRecord['Review Flag Status'] || 'Not Flagged'
+  });
 }

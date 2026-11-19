@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { formatTime12h, generateDaySlots, getDisplayDate, isValidSlot } from '../utils/schedule.ts'
 import { normalizeRegistrationNumber } from './studentDataMapper.ts'
+import { INITIAL_MOCK_STUDENTS } from '../data/mockStudents.ts'
 
 const STORAGE_KEYS = {
   STUDENTS: 'gitam_mock_students_v1',
@@ -27,12 +28,44 @@ class MockStorageService {
 
   private init() {
     try {
-      const storedStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS)
-      const storedBookings = localStorage.getItem(STORAGE_KEYS.BOOKINGS)
+      const storedStudents = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.STUDENTS) : null
+      const storedBookings = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.BOOKINGS) : null
 
       if (storedStudents && storedBookings) {
-        this.inMemoryStudents = JSON.parse(storedStudents)
-        this.inMemoryBookings = JSON.parse(storedBookings)
+        const parsedStudents = JSON.parse(storedStudents)
+        const parsedBookings = JSON.parse(storedBookings)
+        if (Array.isArray(parsedStudents) && parsedStudents.length > 0) {
+          this.inMemoryStudents = parsedStudents
+          this.inMemoryBookings = Array.isArray(parsedBookings) ? parsedBookings : []
+          return
+        }
+      }
+
+      // In browser environment, initialize with staging student registration database
+      if (typeof window !== 'undefined') {
+        this.inMemoryStudents = JSON.parse(JSON.stringify(INITIAL_MOCK_STUDENTS))
+        this.inMemoryBookings = INITIAL_MOCK_STUDENTS.filter(s => s.bookingStatus === 'Booked' && s.bookedDate && s.bookedSlotStart).map(s => {
+          const [h, m] = s.bookedSlotStart!.split(':').map(Number)
+          const endMinutes = h * 60 + m + 10
+          const endH = Math.floor(endMinutes / 60)
+          const endM = endMinutes % 60
+          const endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`
+          return {
+            bookingId: s.bookingId || `BK-${s.bookedDate!.replace(/-/g, '')}-${s.studentId}`,
+            bookingRequestId: s.bookingRequestId || `REQ-${s.studentId}`,
+            studentId: s.studentId,
+            studentName: s.fullName,
+            gitamEmail: s.gitamEmail,
+            date: s.bookedDate!,
+            displayDate: getDisplayDate(s.bookedDate!),
+            startTime: s.bookedSlotStart!,
+            endTime,
+            displayStart: formatTime12h(h, m),
+            displayEnd: formatTime12h(endH, endM),
+            status: 'Confirmed' as const,
+          }
+        })
+        this.save()
         return
       }
     } catch {
@@ -77,23 +110,127 @@ class MockStorageService {
     }
   }
 
+  private ensureBrowserSeeded() {
+    if (typeof window !== 'undefined' && this.inMemoryStudents.length === 0) {
+      this.inMemoryStudents = JSON.parse(JSON.stringify(INITIAL_MOCK_STUDENTS))
+      this.inMemoryBookings = INITIAL_MOCK_STUDENTS.filter(s => s.bookingStatus === 'Booked' && s.bookedDate && s.bookedSlotStart).map(s => {
+        const [h, m] = s.bookedSlotStart!.split(':').map(Number)
+        const endMinutes = h * 60 + m + 10
+        const endH = Math.floor(endMinutes / 60)
+        const endM = endMinutes % 60
+        const endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`
+        return {
+          bookingId: s.bookingId || `BK-${s.bookedDate!.replace(/-/g, '')}-${s.studentId}`,
+          bookingRequestId: s.bookingRequestId || `REQ-${s.studentId}`,
+          studentId: s.studentId,
+          studentName: s.fullName,
+          gitamEmail: s.gitamEmail,
+          date: s.bookedDate!,
+          displayDate: getDisplayDate(s.bookedDate!),
+          startTime: s.bookedSlotStart!,
+          endTime,
+          displayStart: formatTime12h(h, m),
+          displayEnd: formatTime12h(endH, endM),
+          status: 'Confirmed' as const,
+        }
+      })
+      this.save()
+    }
+  }
+
   // ─── Query Operations ─────────────────────────────────────
 
   public getAllStudents(): Student[] {
+    this.ensureBrowserSeeded()
     return [...this.inMemoryStudents]
   }
 
   public getStudentById(studentId: string): Student | undefined {
+    this.ensureBrowserSeeded()
     return this.inMemoryStudents.find((s) => s.studentId === studentId)
   }
 
   public getStudentByEmail(email: string): Student | undefined {
+    this.ensureBrowserSeeded()
+    const clean = email.trim().toLowerCase()
     return this.inMemoryStudents.find(
-      (s) => s.gitamEmail.toLowerCase() === email.toLowerCase() || s.personalEmail.toLowerCase() === email.toLowerCase(),
+      (s) => s.gitamEmail.toLowerCase() === clean || s.personalEmail.toLowerCase() === clean,
     )
   }
 
+  public checkStudentEligibility(email: string):
+    | { success: true; data: { eligible: boolean; email: string }; timestamp: string }
+    | { success: false; error: { code: string; message: string }; timestamp: string } {
+    this.ensureBrowserSeeded()
+    const student = this.getStudentByEmail(email)
+    if (!student) {
+      return {
+        success: false,
+        error: {
+          code: 'UNREGISTERED_STUDENT',
+          message: `This email address (${email.trim()}) is not registered in the student database. Only registered students are eligible to sign in.`,
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+    return {
+      success: true,
+      data: {
+        eligible: true,
+        email: student.gitamEmail,
+      },
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  public studentLoginByEmail(email: string):
+    | { success: true; data: Student; timestamp: string }
+    | { success: false; error: { code: string; message: string }; timestamp: string } {
+    this.ensureBrowserSeeded()
+    const clean = email.trim().toLowerCase()
+    if (!clean) {
+      return {
+        success: false,
+        error: { code: 'MISSING_PARAMETER', message: 'Email address is required' },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    const matches = this.inMemoryStudents.filter(
+      (s) => s.gitamEmail.toLowerCase() === clean || s.personalEmail.toLowerCase() === clean,
+    )
+
+    if (matches.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: 'UNREGISTERED_STUDENT',
+          message: 'This email is not registered. Access denied.',
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    if (matches.length > 1) {
+      return {
+        success: false,
+        error: {
+          code: 'AMBIGUOUS_STUDENT_RECORD',
+          message: 'Multiple registration records match this email address. Please contact the university placement office.',
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    return {
+      success: true,
+      data: matches[0],
+      timestamp: new Date().toISOString(),
+    }
+  }
+
   public getAllBookings(): BookingConfirmation[] {
+    this.ensureBrowserSeeded()
     return [...this.inMemoryBookings]
   }
 
@@ -101,6 +238,7 @@ class MockStorageService {
    * Returns all 36 slots for a given eligible date with their current status.
    */
   public getSlotsForDate(date: string): SlotWithStatus[] {
+    this.ensureBrowserSeeded()
     const baseSlots = generateDaySlots(date)
     const bookingsForDate = this.inMemoryBookings.filter((b) => b.date === date)
 
@@ -555,7 +693,9 @@ class MockStorageService {
           matches.push({ raw: row, studentRef })
         }
       }
-    } else {
+    }
+
+    if (matches.length === 0) {
       // Search in inMemoryStudents
       for (const s of this.inMemoryStudents) {
         const sReg = normalizeRegistrationNumber(s.registrationNumber || s.rollNumber || (!s.studentId.includes('@') ? s.studentId : ''))

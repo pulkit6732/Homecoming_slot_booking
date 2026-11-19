@@ -78,6 +78,7 @@ export function StudentPage() {
       return
     }
 
+
     if (slot.status === 'BOOKED') {
       setNoticeMessage(`Slot ${slot.displayStart} on ${getDisplayDate(slot.date)} is already reserved by another student.`)
       return

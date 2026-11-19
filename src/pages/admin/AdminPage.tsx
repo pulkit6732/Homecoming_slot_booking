@@ -341,12 +341,20 @@ export function AdminPage() {
               alignItems: 'center',
               margin: '1.5rem 0 1rem',
               paddingBottom: '0.75rem',
-              borderBottom: '1px solid var(--portal-border)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.25)',
             }}
           >
             <div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase' }}>
-                Inspection Mode:
+              <span
+                style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  color: '#FFFFFF',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                INSPECTION MODE:
               </span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>

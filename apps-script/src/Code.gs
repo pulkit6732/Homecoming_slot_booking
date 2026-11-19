@@ -37,6 +37,23 @@ function doGet(e) {
         var summaryDate = params.date || '';
         return createJsonResponse(getAdminSummary(summaryToken, summaryDate));
 
+      case 'studentLoginByEmail':
+        var studentEmail = params.email || '';
+        return createJsonResponse(studentLoginByEmail(studentEmail));
+
+      case 'adminLogin':
+        var adminIdent = params.identifier || params.username || params.email || '';
+        var adminPass = params.password || '';
+        return createJsonResponse(adminLogin(adminIdent, adminPass));
+
+      case 'checkStudentEligibility':
+        var eligEmail = params.email || '';
+        return createJsonResponse(checkStudentEligibility(eligEmail));
+
+      case 'getStudentProfile':
+        var profToken = params.token || '';
+        return createJsonResponse(getStudentProfile(profToken));
+
       case 'getStudentDetails':
         var detailsToken = params.token || '';
         var studentId = params.studentId || '';
@@ -128,6 +145,11 @@ function doPost(e) {
 
       case 'editComment':
         return createJsonResponse(editComment(body));
+
+      case 'adminLogin':
+        var pIdent = body.identifier || body.username || body.email || '';
+        var pPass = body.password || '';
+        return createJsonResponse(adminLogin(pIdent, pPass));
 
       default:
         return createJsonResponse(errorPayload(

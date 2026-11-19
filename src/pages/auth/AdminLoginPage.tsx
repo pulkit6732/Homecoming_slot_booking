@@ -79,12 +79,13 @@ export function AdminLoginPage() {
       >
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="filter-input-group">
-            <label htmlFor="admin-email">Administrator Email Address:</label>
+            <label htmlFor="admin-email">Administrator Username or Email Address:</label>
             <input
               id="admin-email"
-              type="email"
+              type="text"
+              autoComplete="username"
               required
-              placeholder="e.g. admin@gitam.in or placement@gitam.in"
+              placeholder="e.g. GMercy, DMoksha, Surya or admin@gitam.in"
               value={adminEmail}
               onChange={(e) => {
                 clearError()
@@ -98,6 +99,7 @@ export function AdminLoginPage() {
             <input
               id="admin-password"
               type="password"
+              autoComplete="current-password"
               required
               placeholder="Enter administrator account password"
               value={password}
