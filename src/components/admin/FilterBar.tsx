@@ -86,7 +86,8 @@ export function FilterBar({ filters, onFilterChange, onResetFilters }: FilterBar
           >
             <option value="">All Approval Statuses</option>
             <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Approved">Approved (legacy)</option>
             <option value="Rejected">Rejected</option>
           </select>
         </div>

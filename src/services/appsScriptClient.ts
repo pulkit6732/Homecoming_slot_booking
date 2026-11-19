@@ -467,7 +467,7 @@ export async function submitReviewAction(
     success: true,
     data: {
       studentId,
-      approvalStatus: action === 'reviewApprove' ? 'Approved' : (action === 'reviewReject' ? 'Rejected' : undefined),
+      approvalStatus: action === 'reviewApprove' ? 'Accepted' : (action === 'reviewReject' ? 'Rejected' : undefined),
       reviewFlagStatus: action === 'reviewFlag' ? 'Flagged for Review' : (action === 'reviewClearFlag' ? 'Not Flagged' : undefined),
       decisionBy: actorEmail,
       decisionTimestamp: new Date().toISOString()

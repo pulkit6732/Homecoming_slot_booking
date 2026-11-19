@@ -65,7 +65,7 @@ export interface BookingConfirmationData {
   interviewEnd: string;
   displayTime: string;
   bookingStatus: 'Booked';
-  approvalStatus: 'Pending' | 'Approved' | 'Rejected';
+  approvalStatus: 'Pending' | 'Approved' | 'Accepted' | 'Rejected';
   bookingTimestamp: string;
   isIdempotentReplay?: boolean;
 }
@@ -132,7 +132,7 @@ export interface ReviewActionPayload {
 
 export interface ReviewActionData {
   studentId: string;
-  approvalStatus?: 'Approved' | 'Rejected' | undefined;
+  approvalStatus?: 'Approved' | 'Accepted' | 'Rejected' | undefined;
   reviewFlagStatus?: 'Flagged for Review' | 'Not Flagged' | undefined;
   decisionBy?: string | undefined;
   decisionTimestamp?: string | undefined;
