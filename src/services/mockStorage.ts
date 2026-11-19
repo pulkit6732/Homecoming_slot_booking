@@ -5,8 +5,6 @@ import type {
   SlotWithStatus,
   Student,
 } from '../types'
-import { INITIAL_MOCK_BOOKINGS } from '../data/mockBookings.ts'
-import { INITIAL_MOCK_STUDENTS } from '../data/mockStudents.ts'
 import { formatTime12h, generateDaySlots, getDisplayDate, isValidSlot } from '../utils/schedule.ts'
 
 const STORAGE_KEYS = {
@@ -39,10 +37,30 @@ class MockStorageService {
     this.resetToInitial()
   }
 
+  /**
+   * Resets internal storage to empty state.
+   * Zero synthetic candidate records loaded by default.
+   */
   public resetToInitial() {
-    this.inMemoryStudents = JSON.parse(JSON.stringify(INITIAL_MOCK_STUDENTS))
-    this.inMemoryBookings = JSON.parse(JSON.stringify(INITIAL_MOCK_BOOKINGS))
+    this.inMemoryStudents = []
+    this.inMemoryBookings = []
     this.save()
+  }
+
+  /**
+   * Explicitly loads test fixtures for automated testing environments only.
+   */
+  public loadTestFixtures(students: Student[], bookings: BookingConfirmation[] = []) {
+    this.inMemoryStudents = JSON.parse(JSON.stringify(students))
+    this.inMemoryBookings = JSON.parse(JSON.stringify(bookings))
+    this.save()
+  }
+
+  /**
+   * Checks whether candidate records are currently loaded.
+   */
+  public isDatabaseConfigured(): boolean {
+    return this.inMemoryStudents.length > 0
   }
 
   private save() {
@@ -111,7 +129,7 @@ class MockStorageService {
     const pending = studentsForDate.filter((s) => s.approvalStatus === 'Pending').length
     const approved = studentsForDate.filter((s) => s.approvalStatus === 'Approved').length
     const rejected = studentsForDate.filter((s) => s.approvalStatus === 'Rejected').length
-    const flagged = studentsForDate.filter((s) => s.reviewFlagStatus === 'Flagged for Review').length
+    const flagged = studentsForDate.filter((s) => s.reviewFlagStatus === 'Yellow Flagged' || s.reviewFlagStatus === 'Flagged for Review').length
 
     return {
       date,
@@ -257,56 +275,207 @@ class MockStorageService {
 
   // ─── Admin Review Operations ──────────────────────────────
 
+  // ─── Admin Review & Comments Operations ──────────────────
+
   public approveStudent(studentId: string, comment: string, adminName: string): boolean {
-    const student = this.getStudentById(studentId)
-    if (!student) return false
-
-    student.approvalStatus = 'Approved'
-    student.decisionBy = adminName || 'Administrator'
-    student.decisionTimestamp = new Date().toISOString()
-    student.decisionComment = comment || ''
-
-    this.save()
-    return true
+    return this.changeApprovalStatus(studentId, 'Approved', comment, adminName)
   }
 
   public rejectStudent(studentId: string, reason: string, adminName: string): boolean {
-    const student = this.getStudentById(studentId)
-    if (!student) return false
-
-    student.approvalStatus = 'Rejected'
-    student.decisionBy = adminName || 'Administrator'
-    student.decisionTimestamp = new Date().toISOString()
-    student.decisionComment = reason
-
-    this.save()
-    return true
+    return this.changeApprovalStatus(studentId, 'Rejected', reason, adminName)
   }
 
   public flagStudent(studentId: string, reason: string, adminName: string): boolean {
+    return this.changeReviewFlag(studentId, 'Yellow Flagged', reason, adminName)
+  }
+
+  public clearFlag(studentId: string): boolean {
+    return this.changeReviewFlag(studentId, 'Not Flagged', 'Flag cleared by admin', 'Administrator')
+  }
+
+  public changeApprovalStatus(
+    studentId: string,
+    newStatus: 'Approved' | 'Rejected' | 'Pending',
+    reason?: string,
+    changedBy?: string
+  ): boolean {
     const student = this.getStudentById(studentId)
     if (!student) return false
 
-    student.reviewFlagStatus = 'Flagged for Review'
-    student.flaggedBy = adminName || 'Administrator'
-    student.flaggedAt = new Date().toISOString()
-    student.flagReason = reason
+    const previousStatus = student.approvalStatus
+    const previousFlag = student.reviewFlagStatus
+    const nowIso = new Date().toISOString()
+    const actor = changedBy || 'Administrator'
+
+    if (!student.reviewHistory) {
+      student.reviewHistory = []
+    }
+
+    student.reviewHistory.unshift({
+      reviewId: `REV-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      studentId,
+      previousApprovalStatus: previousStatus,
+      newApprovalStatus: newStatus,
+      previousReviewFlagStatus: previousFlag,
+      newReviewFlagStatus: previousFlag,
+      changedBy: actor,
+      changedAt: nowIso,
+      reason: reason || '',
+    })
+
+    student.approvalStatus = newStatus
+    student.decisionBy = actor
+    student.decisionTimestamp = nowIso
+    student.decisionComment = reason || ''
 
     this.save()
     return true
   }
 
-  public clearFlag(studentId: string): boolean {
+  public changeReviewFlag(
+    studentId: string,
+    newFlag: 'Yellow Flagged' | 'Flagged for Review' | 'Not Flagged',
+    reason?: string,
+    changedBy?: string
+  ): boolean {
     const student = this.getStudentById(studentId)
     if (!student) return false
 
-    student.reviewFlagStatus = 'Not Flagged'
-    student.flaggedBy = ''
-    student.flaggedAt = ''
-    student.flagReason = ''
+    const previousApproval = student.approvalStatus
+    const previousFlag = student.reviewFlagStatus
+    const nowIso = new Date().toISOString()
+    const actor = changedBy || 'Administrator'
+
+    if (!student.reviewHistory) {
+      student.reviewHistory = []
+    }
+
+    student.reviewHistory.unshift({
+      reviewId: `REV-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      studentId,
+      previousApprovalStatus: previousApproval,
+      newApprovalStatus: previousApproval,
+      previousReviewFlagStatus: previousFlag,
+      newReviewFlagStatus: newFlag,
+      changedBy: actor,
+      changedAt: nowIso,
+      reason: reason || '',
+    })
+
+    student.reviewFlagStatus = newFlag
+    student.flaggedBy = newFlag === 'Not Flagged' ? '' : actor
+    student.flaggedAt = newFlag === 'Not Flagged' ? '' : nowIso
+    student.flagReason = newFlag === 'Not Flagged' ? '' : (reason || '')
 
     this.save()
     return true
+  }
+
+  public createComment(
+    studentId: string,
+    commentText: string,
+    adminEmail: string,
+    adminUid?: string
+  ): { success: boolean; comment?: import('../types').AdminComment; error?: string } {
+    const student = this.getStudentById(studentId)
+    if (!student) return { success: false, error: 'Student not found' }
+    if (!commentText.trim()) return { success: false, error: 'Comment text cannot be empty' }
+
+    if (!student.adminComments) {
+      student.adminComments = []
+    }
+
+    const nowIso = new Date().toISOString()
+    const newComment: import('../types').AdminComment = {
+      commentId: `COMM-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      studentId,
+      adminUid: adminUid || `admin-${adminEmail}`,
+      adminEmail: adminEmail || 'admin@gitam.in',
+      commentText: commentText.trim(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      isEdited: false,
+      editHistory: [],
+    }
+
+    student.adminComments.unshift(newComment) // Newest first
+    this.save()
+    return { success: true, comment: newComment }
+  }
+
+  public editComment(
+    studentId: string,
+    commentId: string,
+    newCommentText: string,
+    adminEmail: string
+  ): { success: boolean; comment?: import('../types').AdminComment; error?: string } {
+    const student = this.getStudentById(studentId)
+    if (!student) return { success: false, error: 'Student not found' }
+    if (!newCommentText.trim()) return { success: false, error: 'Comment text cannot be empty' }
+
+    if (!student.adminComments) {
+      return { success: false, error: 'Comment not found' }
+    }
+
+    const comment = student.adminComments.find((c) => c.commentId === commentId)
+    if (!comment) return { success: false, error: 'Comment not found' }
+
+    // Author-only editing verification
+    if (comment.adminEmail.toLowerCase() !== adminEmail.toLowerCase()) {
+      return { success: false, error: 'Forbidden: You can only edit comments created by your account' }
+    }
+
+    const nowIso = new Date().toISOString()
+    if (!comment.editHistory) {
+      comment.editHistory = []
+    }
+
+    // Preserve prior version in history
+    comment.editHistory.push({
+      commentText: comment.commentText,
+      editedAt: nowIso,
+      editedBy: adminEmail,
+    })
+
+    comment.commentText = newCommentText.trim()
+    comment.updatedAt = nowIso
+    comment.isEdited = true
+
+    this.save()
+    return { success: true, comment }
+  }
+
+  public getReviewDetails(studentId: string): {
+    studentId: string
+    approvalStatus: import('../types').ApprovalStatus
+    reviewFlagStatus: import('../types').ReviewFlagStatus
+    decisionBy: string
+    decisionTimestamp: string
+    decisionComment: string
+    rejectionReason: string
+    flaggedBy: string
+    flaggedAt: string
+    flagReason: string
+    comments: import('../types').AdminComment[]
+    reviewHistory: import('../types').ReviewHistoryEntry[]
+  } | undefined {
+    const student = this.getStudentById(studentId)
+    if (!student) return undefined
+
+    return {
+      studentId,
+      approvalStatus: student.approvalStatus,
+      reviewFlagStatus: student.reviewFlagStatus,
+      decisionBy: student.decisionBy || '',
+      decisionTimestamp: student.decisionTimestamp || '',
+      decisionComment: student.decisionComment || '',
+      rejectionReason: student.decisionComment || '',
+      flaggedBy: student.flaggedBy || '',
+      flaggedAt: student.flaggedAt || '',
+      flagReason: student.flagReason || '',
+      comments: student.adminComments || [],
+      reviewHistory: student.reviewHistory || [],
+    }
   }
 
   // ─── Filter & Search Helpers ──────────────────────────────
@@ -346,8 +515,12 @@ class MockStorageService {
       }
 
       // Review flag status
-      if (filters.reviewFlagStatus && s.reviewFlagStatus !== filters.reviewFlagStatus) {
-        return false
+      if (filters.reviewFlagStatus) {
+        if (filters.reviewFlagStatus === 'Yellow Flagged' || filters.reviewFlagStatus === 'Flagged for Review') {
+          if (s.reviewFlagStatus !== 'Yellow Flagged' && s.reviewFlagStatus !== 'Flagged for Review') return false
+        } else if (s.reviewFlagStatus !== filters.reviewFlagStatus) {
+          return false
+        }
       }
 
       return true
@@ -355,7 +528,7 @@ class MockStorageService {
   }
 
   public getFlaggedStudents(): Student[] {
-    return this.inMemoryStudents.filter((s) => s.reviewFlagStatus === 'Flagged for Review')
+    return this.inMemoryStudents.filter((s) => s.reviewFlagStatus === 'Yellow Flagged' || s.reviewFlagStatus === 'Flagged for Review')
   }
 
   public getUnbookedStudents(): Student[] {

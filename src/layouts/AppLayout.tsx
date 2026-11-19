@@ -20,8 +20,8 @@ export function AppLayout() {
         <div className="site-header__inner">
           <NavLink className="brand" to="/student" end>
             <img
-              src="/gitam-logo.png"
-              alt="GITAM Deemed to be University"
+              src="/assets/homecoming-2026-badge.png"
+              alt="GITAM Homecoming 2026"
               className="brand__logo"
             />
             <span className="brand__divider" aria-hidden="true" />

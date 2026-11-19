@@ -7,9 +7,10 @@ import type { ReviewActionType } from './ReviewActionModal'
 interface StudentTableProps {
   students: Student[]
   onTriggerReviewAction: (student: Student, actionType: ReviewActionType) => void
+  onRefreshData?: () => void
 }
 
-export function StudentTable({ students, onTriggerReviewAction }: StudentTableProps) {
+export function StudentTable({ students, onTriggerReviewAction, onRefreshData }: StudentTableProps) {
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [entriesPerPage, setEntriesPerPage] = useState<EntriesPerPage>(10)
@@ -187,7 +188,7 @@ export function StudentTable({ students, onTriggerReviewAction }: StudentTablePr
                       </div>
                     </div>
 
-                    {isExpanded && <StudentProfileDetails student={student} />}
+                    {isExpanded && <StudentProfileDetails student={student} onReviewUpdate={onRefreshData} />}
                   </td>
                 </tr>
               )

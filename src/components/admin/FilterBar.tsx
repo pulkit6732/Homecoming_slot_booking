@@ -41,7 +41,7 @@ export function FilterBar({ filters, onFilterChange, onResetFilters }: FilterBar
           <input
             id="search-email"
             type="text"
-            placeholder="e.g. asharma14@gitam.in"
+            placeholder="e.g. student@gitam.in"
             value={filters.emailQuery}
             onChange={(e) => handleChange('emailQuery', e.target.value)}
           />
@@ -99,6 +99,7 @@ export function FilterBar({ filters, onFilterChange, onResetFilters }: FilterBar
             onChange={(e) => handleChange('reviewFlagStatus', e.target.value as ReviewFlagStatus)}
           >
             <option value="">All Review Flags</option>
+            <option value="Yellow Flagged">Yellow Flagged</option>
             <option value="Flagged for Review">Flagged for Review</option>
             <option value="Not Flagged">Not Flagged</option>
           </select>

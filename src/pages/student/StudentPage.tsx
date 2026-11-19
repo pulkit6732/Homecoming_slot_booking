@@ -68,6 +68,11 @@ export function StudentPage() {
   const handleBookSlotClick = (slot: SlotWithStatus) => {
     setNoticeMessage(null)
 
+    if (!currentStudent) {
+      setNoticeMessage('Booking is unavailable: Your account is not mapped to a registered student profile in the database.')
+      return
+    }
+
     if (!isDevMockAuthEnabled) {
       setNoticeMessage('Interview slot booking is currently disabled while the student registration database is being verified by the university placement office.')
       return
@@ -139,6 +144,23 @@ export function StudentPage() {
           }}
         >
           <strong>Staging Deployment Notice:</strong> Student slot booking is currently disabled while the master student registration database is being verified by the university placement office. You may view the schedule and test portal infrastructure.
+        </div>
+      )}
+
+      {!currentStudent && (
+        <div
+          style={{
+            backgroundColor: '#fefce8',
+            border: '1px solid #fde047',
+            color: '#854d0e',
+            padding: '1rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1.25rem',
+            fontSize: '0.9rem',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>Registration Record Pending:</strong> Your institutional account ({user?.email || 'unregistered'}) is not currently associated with an active registration record in the portal database. Once the official registration dataset is connected by the placement office, your profile will update automatically.
         </div>
       )}
 

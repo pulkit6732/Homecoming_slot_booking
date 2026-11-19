@@ -10,7 +10,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { isDevMockAuthEnabled } from '../../context/authEnv.ts'
 import '../../styles/portal.css'
 
 interface LocationState {
@@ -51,19 +50,13 @@ export function AdminLoginPage() {
     setIsSubmitting(false)
   }
 
-  const handlePreFill = (testEmail: string) => {
-    clearError()
-    setAdminEmail(testEmail)
-    setPassword('TestAdmin123!')
-  }
-
   return (
     <div style={{ maxWidth: '520px', margin: '2.5rem auto', padding: '0 1rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
         <img
-          src="/gitam-logo.png"
-          alt="GITAM Deemed to be University"
-          style={{ height: '3.75rem', width: 'auto', display: 'inline-block' }}
+          src="/assets/homecoming-2026-badge.png"
+          alt="GITAM Homecoming 2026"
+          style={{ height: '5rem', width: 'auto', display: 'inline-block' }}
         />
       </div>
       <div className="page-heading" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -140,80 +133,18 @@ export function AdminLoginPage() {
           </button>
         </form>
 
-        {/* Development Mock Testing Panel - Strictly hidden in production builds */}
-        {isDevMockAuthEnabled ? (
-          <div
-            style={{
-              marginTop: '2rem',
-              paddingTop: '1.5rem',
-              borderTop: '1px solid var(--portal-border)',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--portal-text-muted)',
-                display: 'block',
-                marginBottom: '0.75rem',
-              }}
-            >
-              Development Admin Credentials (Isolated Test Mode):
-            </span>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
-                onClick={() => handlePreFill('placement.homecoming2026@gitam.in')}
-              >
-                <div><strong>Lead Placement Administrator (Homecoming 2026)</strong></div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
-                  Email: placement.homecoming2026@gitam.in
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
-                onClick={() => handlePreFill('admin@gitam.in')}
-              >
-                <div><strong>Placement Office Administrator</strong></div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
-                  Email: admin@gitam.in
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ textAlign: 'left', fontSize: '0.85rem', borderColor: '#b7dfcb', background: '#eaf7f0' }}
-                onClick={() => handlePreFill('placement@gitam.in')}
-              >
-                <div><strong>Placement Coordinator</strong></div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
-                  Email: placement@gitam.in
-                </div>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              marginTop: '1.5rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--portal-border)',
-              fontSize: '0.8rem',
-              color: 'var(--portal-text-muted)',
-              textAlign: 'center',
-            }}
-          >
-            Institutional Single Sign-On active. All administrative logins are audited and logged per security policy.
-          </div>
-        )}
+        <div
+          style={{
+            marginTop: '1.5rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--portal-border)',
+            fontSize: '0.8rem',
+            color: 'var(--portal-text-muted)',
+            textAlign: 'center',
+          }}
+        >
+          Designated administrator access active. Institutional Single Sign-On and server-side allowlist verification enforced.
+        </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.85rem' }}>
           <span style={{ color: 'var(--portal-text-muted)' }}>Are you an interview candidate? </span>

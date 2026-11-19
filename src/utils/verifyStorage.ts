@@ -1,9 +1,11 @@
 import { mockStorage } from '../services/mockStorage.ts'
+import { INITIAL_MOCK_STUDENTS } from '../data/mockStudents.ts'
+import { INITIAL_MOCK_BOOKINGS } from '../data/mockBookings.ts'
 
 console.log('--- RUNNING STORAGE & CONCURRENCY RULE VERIFICATION ---')
 
-// Reset storage to known state
-mockStorage.resetToInitial()
+// Load test fixtures for isolated test environment
+mockStorage.loadTestFixtures(INITIAL_MOCK_STUDENTS, INITIAL_MOCK_BOOKINGS)
 
 const students = mockStorage.getAllStudents()
 console.assert(students.length === 6, `Expected 6 mock students, got ${students.length}`)

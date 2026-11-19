@@ -253,9 +253,16 @@ function isAuthorizedAdmin(email) {
   var cleanEmail = email.trim().toLowerCase();
   
   var adminConfig = getScriptProperty('ADMIN_EMAILS', '');
+  if (!adminConfig || !adminConfig.trim()) {
+    // Fail-closed: Zero administrators authorized if ADMIN_EMAILS script property is missing or unconfigured
+    return false;
+  }
+
+  // Authoritative server allowlist: supports designated equal administrators
   var allowlist = adminConfig
-    ? adminConfig.split(',').map(function(e) { return e.trim().toLowerCase(); }).filter(Boolean)
-    : CONFIG.DEFAULT_ADMIN_EMAILS;
+    .split(',')
+    .map(function(e) { return e.trim().toLowerCase(); })
+    .filter(Boolean);
 
   for (var i = 0; i < allowlist.length; i++) {
     if (allowlist[i] === cleanEmail) {
@@ -295,9 +302,10 @@ function authenticateAdmin(token) {
 /**
  * Validates student request credentials and resolves registered StudentID.
  * Strictly checks against the Student Database sheet on the backend.
- * Never trusts client-supplied StudentID or identity.
+ * Never trusts client-supplied StudentID, email, or unauthenticated parameters.
+ * Requires a cryptographically verified Supabase JWT token with verified email.
  * 
- * @param {string} token
+ * @param {string} token Cryptographically signed Supabase identity token
  * @return {{ authorized: boolean, studentRecord?: Object, error?: Object }}
  */
 function authenticateStudent(token) {

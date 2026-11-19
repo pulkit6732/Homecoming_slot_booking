@@ -2,11 +2,12 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: #00392F;
 }
 
 .site-header {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: #00392F;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .site-header__inner,
@@ -28,7 +29,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  color: var(--color-text);
+  color: #ffffff;
   font-weight: 750;
   text-decoration: none;
 }
@@ -45,14 +46,14 @@
   display: inline-block;
   width: 1px;
   height: 1.5rem;
-  background-color: var(--portal-border, #cbd5e1);
+  background-color: rgba(255, 255, 255, 0.25);
   margin: 0 0.15rem;
 }
 
 .brand__title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--portal-text, #1e293b);
+  color: #ffffff;
   letter-spacing: -0.01em;
 }
 
@@ -65,16 +66,21 @@
 .primary-navigation a {
   border-radius: 0.5rem;
   padding: 0.6rem 0.85rem;
-  color: var(--color-text-muted);
+  color: #d2e5dc;
   font-size: 0.95rem;
   font-weight: 650;
   text-decoration: none;
 }
 
-.primary-navigation a:hover,
-.primary-navigation a[aria-current='page'] {
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+.primary-navigation a:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.primary-navigation a[aria-current='page'],
+.primary-navigation a.active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
 }
 
 .site-main {
@@ -90,7 +96,7 @@
 .page-heading h1,
 .placeholder-panel h1 {
   margin: 0;
-  color: var(--color-text);
+  color: #ffffff;
   font-size: clamp(2rem, 5vw, 3.25rem);
   letter-spacing: -0.045em;
   line-height: 1.1;
@@ -99,14 +105,14 @@
 .page-heading p:last-child,
 .placeholder-panel p:last-child {
   margin: 1rem 0 0;
-  color: var(--color-text-muted);
+  color: #d2e5dc;
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
 .eyebrow {
   margin: 0 0 0.75rem;
-  color: var(--color-primary-dark);
+  color: #a8ebd0;
   font-size: 0.78rem;
   font-weight: 750;
   letter-spacing: 0.12em;
@@ -119,23 +125,23 @@
   border: 1px solid var(--color-border);
   border-radius: 1rem;
   background: var(--color-surface);
-  box-shadow: 0 1rem 2.5rem rgb(24 51 39 / 6%);
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 25%);
 }
 
 .placeholder-panel h2 {
   margin: 0;
-  color: var(--color-text);
+  color: #172b22;
   font-size: 1.3rem;
 }
 
 .site-footer {
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  background: #00392F;
 }
 
 .site-footer__inner {
   padding-block: 1.25rem;
-  color: var(--color-text-muted);
+  color: #d2e5dc;
   font-size: 0.875rem;
 }
 

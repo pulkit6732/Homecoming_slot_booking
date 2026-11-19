@@ -2,8 +2,8 @@
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #1d2c25;
-  background: #f5f8f6;
+  color: #ffffff;
+  background: #00392F;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -13,10 +13,10 @@
   --color-primary-dark: #0c5134;
   --color-primary-soft: #e6f2eb;
   --color-focus: #d29d1d;
-  --color-text: #1d2c25;
-  --color-text-muted: #5c6a62;
-  --color-border: #dce5df;
-  --color-surface: #fff;
+  --color-text: #ffffff;
+  --color-text-muted: #d2e5dc;
+  --color-border: rgba(255, 255, 255, 0.15);
+  --color-surface: #ffffff;
 }
 
 * {
@@ -27,6 +27,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background-color: #00392F;
+  color: #ffffff;
 }
 
 button,

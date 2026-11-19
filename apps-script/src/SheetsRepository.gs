@@ -87,18 +87,24 @@ function getAllStudentRecords() {
  */
 function getStudentRecordByEmail(email) {
   if (!email) return null;
-  var target = email.trim().toLowerCase();
+  var target = String(email).trim().toLowerCase().replace(/\s+/g, '');
   var sheet = getSheetByName(CONFIG.SHEET_NAMES.STUDENT_DB);
   var rows = readSheetRowsWithHeader(sheet);
+  var matches = [];
 
   for (var i = 0; i < rows.length; i++) {
     var d = rows[i].data;
-    var rowEmail = String(d.Email || d['GITAM Email'] || d['Student Email'] || d['Email Address'] || d['Candidate Email'] || '').trim().toLowerCase();
+    var rowEmail = String(d.Email || d['GITAM Email'] || d['GITAM Email Address'] || d['Student Email'] || d['Email Address'] || d['Candidate Email'] || '').trim().toLowerCase().replace(/\s+/g, '');
     if (rowEmail === target) {
-      return rows[i].data;
+      matches.push(rows[i].data);
     }
   }
-  return null;
+
+  if (matches.length === 0) {
+    return null;
+  }
+  // Safely return primary match without creating duplicate rows or crashing
+  return matches[0];
 }
 
 /**
@@ -108,14 +114,15 @@ function getStudentRecordByEmail(email) {
  */
 function getStudentRecordWithRowById(studentId) {
   if (!studentId) return null;
-  var target = String(studentId).trim();
+  var target = String(studentId).trim().toLowerCase();
   var sheet = getSheetByName(CONFIG.SHEET_NAMES.STUDENT_DB);
   var rows = readSheetRowsWithHeader(sheet);
 
   for (var i = 0; i < rows.length; i++) {
     var d = rows[i].data;
-    var sid = String(d.StudentID || d['Student ID'] || d['Roll Number'] || d['Registration Number'] || '').trim();
-    if (sid === target) {
+    var sid = String(d.StudentID || d['Student ID'] || d['Roll Number'] || d['Registration Number'] || d['Registration no.'] || '').trim().toLowerCase();
+    var email = String(d.Email || d['GITAM Email'] || d['GITAM Email Address'] || d['Student Email'] || d['Email Address'] || d['Candidate Email'] || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (sid === target || (target.indexOf('@') !== -1 && email === target)) {
       return rows[i];
     }
   }
@@ -266,6 +273,22 @@ function updateStudentReview(studentId, reviewData) {
   var sheet = getSheetByName(CONFIG.SHEET_NAMES.STUDENT_DB);
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var rowNumber = studentRef.rowNumber;
+
+  // Dynamically ensure missing columns exist in Student Database header row without adding extra tabs
+  for (var key in reviewData) {
+    var found = false;
+    for (var h = 0; h < headers.length; h++) {
+      if (String(headers[h]).trim() === key) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      var lastCol = sheet.getLastColumn();
+      sheet.getRange(1, lastCol + 1).setValue(key);
+      headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    }
+  }
 
   for (var c = 0; c < headers.length; c++) {
     var header = String(headers[c]).trim();

@@ -57,7 +57,7 @@ function createBooking(params) {
       return errorPayload(authResult.error.code, authResult.error.message);
     }
     var student = authResult.studentRecord;
-    var studentId = student.StudentID;
+    var studentId = student.StudentID || student['Student ID'] || student['Roll Number'] || student['Registration Number'] || student['Registration no.'] || student.Email || student['Email Address'] || '';
 
     var bookingRequestId = String(params.bookingRequestId || '').trim();
     if (!bookingRequestId) {

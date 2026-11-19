@@ -16,7 +16,7 @@ export function Badge({ type, status }: BadgeProps) {
     else if (status === 'Rejected') badgeClass += ' badge-rejected'
     else badgeClass += ' badge-pending'
   } else if (type === 'review') {
-    if (status === 'Flagged for Review') badgeClass += ' badge-flagged'
+    if (status === 'Flagged for Review' || status === 'Yellow Flagged') badgeClass += ' badge-flagged'
     else badgeClass += ' badge-pending'
   } else if (type === 'booking') {
     if (status === 'Booked') badgeClass += ' badge-available'

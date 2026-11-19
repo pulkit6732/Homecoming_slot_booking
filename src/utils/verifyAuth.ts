@@ -7,8 +7,12 @@
  */
 
 import { mockStorage } from '../services/mockStorage.ts'
+import { INITIAL_MOCK_STUDENTS } from '../data/mockStudents.ts'
 
 console.log('--- RUNNING PHASE 3 AUTHENTICATION & ACCESS CONTROL TESTS ---')
+
+// Load test fixtures for isolated test environment
+mockStorage.loadTestFixtures(INITIAL_MOCK_STUDENTS)
 
 // Server-side authoritative admin allowlist evaluation
 const SERVER_ADMIN_ALLOWLIST = ['admin@gitam.in', 'placement@gitam.in', 'interviews@gitam.in']

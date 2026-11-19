@@ -23,9 +23,9 @@ export function UnauthorizedPage() {
     <div style={{ maxWidth: '540px', margin: '3rem auto', padding: '0 1rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
         <img
-          src="/gitam-logo.png"
-          alt="GITAM Deemed to be University"
-          style={{ height: '3.75rem', width: 'auto', display: 'inline-block' }}
+          src="/assets/homecoming-2026-badge.png"
+          alt="GITAM Homecoming 2026"
+          style={{ height: '5rem', width: 'auto', display: 'inline-block' }}
         />
       </div>
       <div

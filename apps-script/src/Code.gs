@@ -42,6 +42,16 @@ function doGet(e) {
         var studentId = params.studentId || '';
         return createJsonResponse(getStudentDetails(detailsToken, studentId));
 
+      case 'getReviewDetails':
+        var revToken = params.token || '';
+        var revStudentId = params.studentId || '';
+        return createJsonResponse(getReviewDetails(revToken, revStudentId));
+
+      case 'getCommentHistory':
+        var commToken = params.token || '';
+        var commStudentId = params.studentId || '';
+        return createJsonResponse(getCommentHistory(commToken, commStudentId));
+
       default:
         return createJsonResponse(errorPayload(
           CONFIG.ERROR_CODES.MISSING_PARAMETER,
@@ -97,6 +107,18 @@ function doPost(e) {
 
       case 'reviewClearFlag':
         return createJsonResponse(reviewClearFlag(body));
+
+      case 'changeApprovalStatus':
+        return createJsonResponse(changeApprovalStatus(body));
+
+      case 'changeReviewFlag':
+        return createJsonResponse(changeReviewFlag(body));
+
+      case 'createComment':
+        return createJsonResponse(createComment(body));
+
+      case 'editComment':
+        return createJsonResponse(editComment(body));
 
       default:
         return createJsonResponse(errorPayload(

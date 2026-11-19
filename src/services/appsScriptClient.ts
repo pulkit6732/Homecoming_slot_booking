@@ -442,3 +442,339 @@ export async function submitReviewAction(
     timestamp: new Date().toISOString()
   };
 }
+
+/**
+ * Fetches review details, private comments, and decision history for a student.
+ */
+export async function getReviewDetails(
+  token: string,
+  studentId: string
+): Promise<ApiResponse<{
+  studentId: string;
+  approvalStatus: import('../types').ApprovalStatus;
+  reviewFlagStatus: import('../types').ReviewFlagStatus;
+  decisionBy: string;
+  decisionTimestamp: string;
+  decisionComment: string;
+  rejectionReason: string;
+  flaggedBy: string;
+  flaggedAt: string;
+  flagReason: string;
+  comments: import('../types').AdminComment[];
+  reviewHistory: import('../types').ReviewHistoryEntry[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend({
+        action: 'getReviewDetails',
+        token,
+        studentId
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const details = mockStorage.getReviewDetails(studentId);
+  if (!details) {
+    return {
+      success: false,
+      error: { code: 'STUDENT_NOT_FOUND', message: `Student ${studentId} not found` },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  return {
+    success: true,
+    data: details,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Updates a student's approval status with decision reason and audit history.
+ */
+export async function changeApprovalStatus(
+  token: string,
+  studentId: string,
+  newApprovalStatus: 'Approved' | 'Rejected' | 'Pending',
+  reason?: string,
+  adminEmail?: string
+): Promise<ApiResponse<{
+  studentId: string;
+  approvalStatus: import('../types').ApprovalStatus;
+  reviewFlagStatus: import('../types').ReviewFlagStatus;
+  decisionBy: string;
+  decisionTimestamp: string;
+  decisionComment: string;
+  reviewHistory: import('../types').ReviewHistoryEntry[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await postToBackend({
+        action: 'changeApprovalStatus',
+        token,
+        studentId,
+        newApprovalStatus,
+        reason
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const success = mockStorage.changeApprovalStatus(studentId, newApprovalStatus, reason, adminEmail);
+  if (!success) {
+    return {
+      success: false,
+      error: { code: 'UPDATE_FAILED', message: `Failed to update approval status for ${studentId}` },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const details = mockStorage.getReviewDetails(studentId);
+  return {
+    success: true,
+    data: {
+      studentId,
+      approvalStatus: details?.approvalStatus || newApprovalStatus,
+      reviewFlagStatus: details?.reviewFlagStatus || 'Not Flagged',
+      decisionBy: details?.decisionBy || adminEmail || 'Administrator',
+      decisionTimestamp: details?.decisionTimestamp || new Date().toISOString(),
+      decisionComment: reason || '',
+      reviewHistory: details?.reviewHistory || []
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Updates a student's review flag with reason and audit history.
+ */
+export async function changeReviewFlag(
+  token: string,
+  studentId: string,
+  newReviewFlagStatus: 'Yellow Flagged' | 'Flagged for Review' | 'Not Flagged',
+  reason?: string,
+  adminEmail?: string
+): Promise<ApiResponse<{
+  studentId: string;
+  approvalStatus: import('../types').ApprovalStatus;
+  reviewFlagStatus: import('../types').ReviewFlagStatus;
+  flaggedBy: string;
+  flaggedAt: string;
+  flagReason: string;
+  reviewHistory: import('../types').ReviewHistoryEntry[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await postToBackend({
+        action: 'changeReviewFlag',
+        token,
+        studentId,
+        newReviewFlagStatus,
+        reason
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const success = mockStorage.changeReviewFlag(studentId, newReviewFlagStatus, reason, adminEmail);
+  if (!success) {
+    return {
+      success: false,
+      error: { code: 'UPDATE_FAILED', message: `Failed to update review flag for ${studentId}` },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const details = mockStorage.getReviewDetails(studentId);
+  return {
+    success: true,
+    data: {
+      studentId,
+      approvalStatus: details?.approvalStatus || 'Pending',
+      reviewFlagStatus: details?.reviewFlagStatus || newReviewFlagStatus,
+      flaggedBy: details?.flaggedBy || '',
+      flaggedAt: details?.flaggedAt || '',
+      flagReason: details?.flagReason || '',
+      reviewHistory: details?.reviewHistory || []
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Saves a private administrative comment for a student.
+ */
+export async function saveAdminComment(
+  token: string,
+  studentId: string,
+  commentText: string,
+  adminEmail?: string,
+  adminUid?: string
+): Promise<ApiResponse<{
+  comment: import('../types').AdminComment;
+  comments: import('../types').AdminComment[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await postToBackend({
+        action: 'createComment',
+        token,
+        studentId,
+        commentText
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const res = mockStorage.createComment(studentId, commentText, adminEmail || 'admin@gitam.in', adminUid);
+  if (!res.success || !res.comment) {
+    return {
+      success: false,
+      error: { code: 'COMMENT_FAILED', message: res.error || 'Failed to save comment' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const allComments = mockStorage.getStudentById(studentId)?.adminComments || [res.comment];
+  return {
+    success: true,
+    data: {
+      comment: res.comment,
+      comments: allComments
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Edits an administrator's existing comment. Preserves version history.
+ */
+export async function editAdminComment(
+  token: string,
+  studentId: string,
+  commentId: string,
+  newCommentText: string,
+  adminEmail?: string
+): Promise<ApiResponse<{
+  updatedComment: import('../types').AdminComment;
+  comments: import('../types').AdminComment[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await postToBackend({
+        action: 'editComment',
+        token,
+        studentId,
+        commentId,
+        newCommentText
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const res = mockStorage.editComment(studentId, commentId, newCommentText, adminEmail || 'admin@gitam.in');
+  if (!res.success || !res.comment) {
+    return {
+      success: false,
+      error: { code: 'EDIT_FAILED', message: res.error || 'Failed to edit comment' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const allComments = mockStorage.getStudentById(studentId)?.adminComments || [res.comment];
+  return {
+    success: true,
+    data: {
+      updatedComment: res.comment,
+      comments: allComments
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Fetches private comment history for a student. Strictly admin-only.
+ */
+export async function getCommentHistory(
+  token: string,
+  studentId: string
+): Promise<ApiResponse<{
+  studentId: string;
+  comments: import('../types').AdminComment[];
+}>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend({
+        action: 'getCommentHistory',
+        token,
+        studentId
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const comments = mockStorage.getStudentById(studentId)?.adminComments || [];
+  return {
+    success: true,
+    data: {
+      studentId,
+      comments
+    },
+    timestamp: new Date().toISOString()
+  };
+}

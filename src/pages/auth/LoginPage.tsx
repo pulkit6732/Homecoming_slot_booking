@@ -1,7 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { isDevMockAuthEnabled } from '../../context/authEnv.ts'
 import '../../styles/portal.css'
 
 interface LocationState {
@@ -43,26 +42,20 @@ export function LoginPage() {
     setIsSubmitting(false)
   }
 
-  const handlePreFill = (testId: string) => {
-    clearError()
-    setIdentifier(testId)
-    setPassword('TestPassword123!')
-  }
-
   return (
     <div style={{ maxWidth: '520px', margin: '2rem auto', padding: '0 1rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
         <img
-          src="/gitam-logo.png"
-          alt="GITAM Deemed to be University"
-          style={{ height: '3.75rem', width: 'auto', display: 'inline-block' }}
+          src="/assets/homecoming-2026-badge.png"
+          alt="GITAM Homecoming 2026"
+          style={{ height: '5rem', width: 'auto', display: 'inline-block' }}
         />
       </div>
       <div className="page-heading" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <p className="eyebrow">GITAM Candidate Access • Placements 2026</p>
         <h1 style={{ fontSize: '1.85rem' }}>Student Interview Portal Login</h1>
         <p style={{ fontSize: '0.9rem' }}>
-          Sign in with your verified GITAM institutional email address (@gitam.in) to view slot schedules and reserve your interview. Timezone: Asia/Kolkata (IST).
+          Sign in with your verified institutional credentials to view slot schedules and reserve your interview. Timezone: Asia/Kolkata (IST).
         </p>
       </div>
 
@@ -82,7 +75,7 @@ export function LoginPage() {
               id="login-identifier"
               type="text"
               required
-              placeholder="e.g. GITAM-2026-005 or asharma14@gitam.in"
+              placeholder="e.g. student@gitam.in"
               value={identifier}
               onChange={(e) => {
                 clearError()
@@ -132,68 +125,18 @@ export function LoginPage() {
           </button>
         </form>
 
-        {/* Development Mock Testing Panel - Strictly hidden in production builds */}
-        {isDevMockAuthEnabled ? (
-          <div
-            style={{
-              marginTop: '2rem',
-              paddingTop: '1.5rem',
-              borderTop: '1px solid var(--portal-border)',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--portal-text-muted)',
-                display: 'block',
-                marginBottom: '0.75rem',
-              }}
-            >
-              Development Fixture Credentials (Isolated Test Mode):
-            </span>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ textAlign: 'left', fontSize: '0.85rem' }}
-                onClick={() => handlePreFill('GITAM-2026-005')}
-              >
-                <div><strong>Sneha Patel</strong> (Unbooked Student)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
-                  ID: GITAM-2026-005 | Email: snair18@gitam.in
-                </div>
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ textAlign: 'left', fontSize: '0.85rem' }}
-                onClick={() => handlePreFill('asharma14@gitam.in')}
-              >
-                <div><strong>Aarav Sharma</strong> (Booked Student)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--portal-text-muted)' }}>
-                  ID: GITAM-2026-001 | Email: asharma14@gitam.in
-                </div>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              marginTop: '1.5rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--portal-border)',
-              fontSize: '0.8rem',
-              color: 'var(--portal-text-muted)',
-              textAlign: 'center',
-            }}
-          >
-            Official institutional login active. Use your verified @gitam.in Google Workspace credentials.
-          </div>
-        )}
+        <div
+          style={{
+            marginTop: '1.5rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--portal-border)',
+            fontSize: '0.8rem',
+            color: 'var(--portal-text-muted)',
+            textAlign: 'center',
+          }}
+        >
+          Official institutional login active. Use your verified institutional Google Workspace credentials.
+        </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.85rem' }}>
           <span style={{ color: 'var(--portal-text-muted)' }}>University Placement Administrator? </span>

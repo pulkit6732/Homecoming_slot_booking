@@ -13,6 +13,8 @@
  */
 
 import { mockStorage } from '../services/mockStorage.ts';
+import { INITIAL_MOCK_STUDENTS } from '../data/mockStudents.ts';
+import { INITIAL_MOCK_BOOKINGS } from '../data/mockBookings.ts';
 import { ELIGIBLE_DATES, generateAllSlots } from './schedule.ts';
 
 console.log('--- RUNNING PHASE 5 GOOGLE SHEETS & LIVE SYNC VERIFICATION SUITE ---');
@@ -28,7 +30,7 @@ console.log('[PASS] Test 1: Exactly 3 tabs defined (Student Database, Approved, 
 
 // Test 2: StudentID Primary Key & In-Place Update (No Duplicate Students)
 console.log('Running Test 2: Verifying In-Place Student Updates (Zero Duplicates)...');
-mockStorage.resetToInitial();
+mockStorage.loadTestFixtures(INITIAL_MOCK_STUDENTS, INITIAL_MOCK_BOOKINGS);
 const initialStudentCount = mockStorage.getAllStudents().length;
 
 // Find an unbooked student and book a slot
@@ -72,7 +74,7 @@ console.assert(flagSuccess === true, 'Flag operation must succeed');
 updatedStudent = mockStorage.getStudentById(targetId);
 
 // ReviewFlagStatus is updated, but ApprovalStatus and BookingStatus remain intact
-console.assert(updatedStudent?.reviewFlagStatus === 'Flagged for Review', 'ReviewFlagStatus must be Flagged for Review');
+console.assert(updatedStudent?.reviewFlagStatus === 'Flagged for Review' || updatedStudent?.reviewFlagStatus === 'Yellow Flagged', 'ReviewFlagStatus must be Flagged for Review / Yellow Flagged');
 console.assert(updatedStudent?.approvalStatus === 'Rejected', 'ApprovalStatus must remain Rejected');
 console.assert(updatedStudent?.bookingStatus === 'Booked', 'BookingStatus must remain Booked');
 console.assert(updatedStudent?.bookedDate === '2026-11-20', 'Interview date must remain 2026-11-20');

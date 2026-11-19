@@ -2,8 +2,40 @@
 
 export type BookingStatus = 'Not Booked' | 'Booked' | 'Cancelled'
 export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected'
-export type ReviewFlagStatus = 'Not Flagged' | 'Flagged for Review'
+export type ReviewFlagStatus = 'Not Flagged' | 'Flagged for Review' | 'Yellow Flagged'
 export type SlotStatus = 'AVAILABLE' | 'BOOKED'
+
+// ─── Review & Private Comments ────────────────────────────
+
+export interface CommentVersion {
+  commentText: string
+  editedAt: string
+  editedBy: string
+}
+
+export interface AdminComment {
+  commentId: string
+  studentId: string
+  adminUid: string
+  adminEmail: string
+  commentText: string
+  createdAt: string
+  updatedAt: string
+  isEdited: boolean
+  editHistory?: CommentVersion[]
+}
+
+export interface ReviewHistoryEntry {
+  reviewId: string
+  studentId: string
+  previousApprovalStatus: ApprovalStatus
+  newApprovalStatus: ApprovalStatus
+  previousReviewFlagStatus: ReviewFlagStatus
+  newReviewFlagStatus: ReviewFlagStatus
+  changedBy: string
+  changedAt: string
+  reason?: string
+}
 
 // ─── Schedule ────────────────────────────────────────────
 
@@ -104,6 +136,17 @@ export interface Student {
   flaggedBy: string
   flaggedAt: string
   flagReason: string
+
+  // Dossier application sections (recruitment submission)
+  committeePreferences?: string
+  rolesAppliedFor?: string
+  writtenApplication?: string
+  selfAssessment?: string
+  availabilityCommute?: string
+
+  // Private administration & audit history
+  adminComments?: AdminComment[]
+  reviewHistory?: ReviewHistoryEntry[]
 }
 
 // ─── Booking ─────────────────────────────────────────────

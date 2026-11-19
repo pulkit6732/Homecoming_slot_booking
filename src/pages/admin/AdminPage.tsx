@@ -125,13 +125,6 @@ export function AdminPage() {
     }
   }
 
-  const handleResetAllMockData = () => {
-    if (window.confirm('Reset all mock students, bookings, and review statuses?')) {
-      mockStorage.resetToInitial()
-      void triggerSync()
-    }
-  }
-
   // Trigger Review Action
   const handleTriggerReviewAction = (student: Student, actionType: ReviewActionType) => {
     setReviewModalStudent(student)
@@ -209,19 +202,35 @@ export function AdminPage() {
             <p className="eyebrow">GITAM Administration • Interview Operations</p>
             <h1>Interview Schedule & Review Dashboard</h1>
             <p>
-              Monitor slot availability, inspect which student booked which slot, evaluate candidate dossiers, or release slot reservations.
+              Monitor slot availability, inspect candidate bookings, evaluate student dossiers, and manage review decisions.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
-            onClick={handleResetAllMockData}
-          >
-            Reset Fixture Data
-          </button>
         </div>
       </div>
+
+      {/* Database Availability Status Banner */}
+      {allStudents.length === 0 && (
+        <div
+          style={{
+            backgroundColor: '#fefce8',
+            border: '1px solid #fde047',
+            color: '#854d0e',
+            padding: '1.25rem 1.5rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.4rem',
+          }}
+        >
+          <div style={{ fontWeight: 750, fontSize: '1rem', color: '#713f12' }}>
+            Official Registration Database Pending Connection
+          </div>
+          <div style={{ fontSize: '0.88rem', lineHeight: 1.5 }}>
+            No candidate records are currently loaded in the portal. The official student registration spreadsheet has not yet been connected. Once the authorized Google Sheet is linked, candidates will be populated automatically without fabricated test data.
+          </div>
+        </div>
+      )}
 
       {/* Sub-Navigation Tabs */}
       <div className="admin-subnav-pills" role="tablist" aria-label="Admin Sections">
@@ -324,6 +333,7 @@ export function AdminPage() {
               <StudentTable
                 students={filteredBookedStudents}
                 onTriggerReviewAction={handleTriggerReviewAction}
+                onRefreshData={triggerSync}
               />
             </>
           )}
