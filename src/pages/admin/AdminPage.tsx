@@ -5,6 +5,7 @@ import { mockStorage } from '../../services/mockStorage'
 import {
   getAdminSchedule,
   getAdminSummary,
+  getAllStudents,
   changeApprovalStatus,
   changeReviewFlag,
   cancelBooking,
@@ -89,8 +90,11 @@ export function AdminPage() {
   // Refresh callback that performs an actual backend or storage fetch
   const refreshAdminData = useCallback(async () => {
     if (isLiveBackendConfigured()) {
-      const scheduleRes = await getAdminSchedule(sessionToken, selectedDate)
-      const summaryRes = await getAdminSummary(sessionToken, selectedDate)
+      const [scheduleRes, summaryRes, studentsRes] = await Promise.all([
+        getAdminSchedule(sessionToken, selectedDate),
+        getAdminSummary(sessionToken, selectedDate),
+        getAllStudents(sessionToken),
+      ])
       if (scheduleRes.success && summaryRes.success) {
         setDaySummary({
           date: selectedDate,
@@ -115,8 +119,9 @@ export function AdminPage() {
             status: s.status,
           }))
         )
-        // In dev mode, also refresh student list from mock storage
-        setAllStudents(mockStorage.getAllStudents())
+        if (studentsRes.success && studentsRes.data) {
+          setAllStudents(studentsRes.data.students as Student[])
+        }
         return
       }
       const err = !scheduleRes.success

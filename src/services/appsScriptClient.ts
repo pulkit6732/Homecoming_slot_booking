@@ -15,7 +15,8 @@ import type {
   AdminScheduleData,
   AdminSummaryData,
   ReviewActionData,
-  StudentDossierData
+  StudentDossierData,
+  StudentListData
 } from '../types/api.ts';
 import { mockStorage } from './mockStorage.ts';
 import { isDevMockAuthEnabled } from '../context/authEnv.ts';
@@ -380,6 +381,31 @@ export async function getAdminSummary(
     },
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Fetches all registered students from the Student Database (admin-only).
+ */
+export async function getAllStudents(token: string): Promise<ApiResponse<StudentListData>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend<StudentListData>({ action: 'getStudentList', token });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const students = mockStorage.getAllStudents();
+  return { success: true, data: { students, count: students.length }, timestamp: new Date().toISOString() };
 }
 
 /**

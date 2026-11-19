@@ -151,3 +151,8 @@ export interface GetDossierPayload {
   token: string;
   registrationNumber: string;
 }
+
+export interface StudentListData {
+  students: import('./index').Student[];
+  count: number;
+}

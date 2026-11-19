@@ -57,6 +57,10 @@ function doGet(e) {
         var commStudentId = params.studentId || '';
         return createJsonResponse(getCommentHistory(commToken, commStudentId));
 
+      case 'getStudentList':
+        var slToken = params.token || '';
+        return createJsonResponse(getAllStudentsAdmin(slToken));
+
       default:
         return createJsonResponse(errorPayload(
           CONFIG.ERROR_CODES.MISSING_PARAMETER,
