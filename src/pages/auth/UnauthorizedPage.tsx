@@ -31,6 +31,7 @@ export function UnauthorizedPage() {
       <div
         style={{
           background: 'var(--portal-card-bg)',
+          color: 'var(--portal-text)',
           border: '1px solid var(--status-rejected-bg)',
           borderRadius: 'var(--radius-lg)',
           padding: '2.5rem 2rem',

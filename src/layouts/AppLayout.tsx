@@ -34,9 +34,9 @@ export function AppLayout() {
 
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--portal-text-muted)' }}>
+                <span style={{ fontSize: '0.8rem', color: '#d2e5dc' }}>
                   {user.email} (
-                  <strong style={{ textTransform: 'uppercase', color: user.role === 'admin' ? 'var(--portal-primary)' : 'inherit' }}>
+                  <strong style={{ textTransform: 'uppercase', color: user.role === 'admin' ? '#FDB813' : '#a8ebd0' }}>
                     {user.role}
                   </strong>
                   )
@@ -45,13 +45,27 @@ export function AppLayout() {
                   type="button"
                   className="btn-table-action"
                   onClick={handleLogout}
-                  style={{ padding: '0.35rem 0.65rem' }}
+                  style={{
+                    padding: '0.35rem 0.65rem',
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    color: '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                  }}
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <NavLink to="/login" style={{ background: 'var(--portal-primary-light)', color: 'var(--portal-primary)' }}>
+              <NavLink
+                to="/login"
+                style={{
+                  background: '#FDB813',
+                  color: '#00392F',
+                  fontWeight: 700,
+                  padding: '0.45rem 0.95rem',
+                  borderRadius: '0.5rem',
+                }}
+              >
                 Sign In
               </NavLink>
             )}

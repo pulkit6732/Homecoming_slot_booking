@@ -31,6 +31,7 @@ export function UnbookedStudentsSection({ unbookedStudents }: UnbookedStudentsSe
       <div
         style={{
           backgroundColor: '#ffffff',
+          color: 'var(--portal-text)',
           border: '1px solid var(--portal-border)',
           borderRadius: 'var(--radius-md)',
           padding: '1rem',
@@ -75,7 +76,7 @@ export function UnbookedStudentsSection({ unbookedStudents }: UnbookedStudentsSe
                 <td style={{ fontFamily: 'monospace' }}>{s.rollNumber}</td>
                 <td>{s.program} - {s.branch}</td>
                 <td>{s.academicYear}</td>
-                <td><strong>{s.cgpa.toFixed(2)}</strong></td>
+                <td><strong>{(Number(s.cgpa) || 0).toFixed(2)}</strong></td>
                 <td>{s.phoneNumber}</td>
                 <td>
                   <Badge type="review" status={s.reviewFlagStatus} />

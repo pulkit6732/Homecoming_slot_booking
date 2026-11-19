@@ -6,7 +6,8 @@ export interface AuthUser {
   id: string
   email: string
   role: UserRole
-  studentProfile?: Student
+  studentProfile?: Student | undefined
+  accessToken?: string | undefined
 }
 
 export interface AuthContextType {

@@ -105,6 +105,16 @@ export function normalizeEmail(email: unknown): string {
 }
 
 /**
+ * Normalizes Registration Number by trimming whitespace, removing non-printable characters,
+ * and standardizing to uppercase. Empty strings or non-strings return empty string.
+ */
+export function normalizeRegistrationNumber(regNum: unknown): string {
+  if (regNum === null || regNum === undefined) return ''
+  const str = String(regNum).trim().toUpperCase()
+  return str.replace(/[\u200B-\u200D\uFEFF]/g, '')
+}
+
+/**
  * Extracts a field value from a raw row given candidate header names.
  */
 export function extractFieldByHeaders(row: RawSpreadsheetRow, candidateHeaders: string[]): string {
@@ -183,6 +193,7 @@ export function mapRawRowToStudent(
 
   const student: Student = {
     studentId: rawStudentId || email,
+    registrationNumber: rawStudentId || undefined,
     fullName,
     firstName,
     lastName,

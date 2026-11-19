@@ -44,6 +44,7 @@ export function AdminScheduleView({
         key={slot.startTime}
         style={{
           backgroundColor: isAvailable ? '#f0fdf4' : '#ffffff',
+          color: 'var(--portal-text)',
           border: isAvailable ? '1px solid #bbf7d0' : '1px solid var(--portal-border)',
           borderRadius: 'var(--radius-md)',
           padding: '0.85rem',
@@ -55,7 +56,7 @@ export function AdminScheduleView({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.95rem' }}>
+          <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.95rem', color: isAvailable ? '#166534' : 'var(--portal-text)' }}>
             {slot.displayStart} – {slot.displayEnd}
           </span>
           <Badge type="slot" status={slot.status} />

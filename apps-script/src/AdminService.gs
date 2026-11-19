@@ -137,6 +137,56 @@ function getStudentDetails(token, studentId) {
 }
 
 /**
+ * Retrieves full dossier for a student using exact Registration Number as primary key.
+ * 
+ * Rules:
+ * - Registration Number is the unique identifier.
+ * - Searches original Google Form responses dataset.
+ * - Authenticates admin privileges (blocks student or unauthorized access).
+ * - Exact 1 match: returns dossier with separate original submission and admin review data.
+ * - 0 matches: returns controlled SUBMISSION_NOT_FOUND error.
+ * - >1 matches: returns controlled AMBIGUOUS_REGISTRATION warning (prevents silent selection).
+ * - Missing Registration Number: returns controlled MISSING_REGISTRATION_NUMBER error.
+ * - Never falls back to email or another student.
+ * 
+ * @param {string} token
+ * @param {string} registrationNumber
+ * @return {Object}
+ */
+function getStudentDossier(token, registrationNumber) {
+  var adminAuth = authenticateAdmin(token);
+  if (!adminAuth.authorized) {
+    return errorPayload(adminAuth.error.code, adminAuth.error.message);
+  }
+
+  var normalizedReg = normalizeRegistrationNumber(registrationNumber);
+  if (!normalizedReg) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.MISSING_REGISTRATION_NUMBER,
+      'Data integrity error: Registration Number is missing or empty. Lookup prevented.'
+    );
+  }
+
+  var searchResult = getOriginalFormSubmissionByRegistrationNumber(normalizedReg);
+  if (!searchResult.success) {
+    return errorPayload(
+      searchResult.error.code,
+      searchResult.error.message,
+      searchResult.error.details
+    );
+  }
+
+  var originalSubmission = formatOriginalSubmission(searchResult.rawSubmission, normalizedReg);
+  var adminReviewData = getAdminReviewDataByRegistrationNumber(normalizedReg);
+
+  return successPayload({
+    registrationNumber: normalizedReg,
+    originalSubmission: originalSubmission,
+    adminReviewData: adminReviewData
+  });
+}
+
+/**
  * Review Action 1: APPROVE
  * - ApprovalStatus = Approved
  * - Record DecisionBy and DecisionTimestamp

@@ -14,7 +14,8 @@ import type {
   CancelBookingData,
   AdminScheduleData,
   AdminSummaryData,
-  ReviewActionData
+  ReviewActionData,
+  StudentDossierData
 } from '../types/api.ts';
 import { mockStorage } from './mockStorage.ts';
 import { isDevMockAuthEnabled } from '../context/authEnv.ts';
@@ -777,4 +778,35 @@ export async function getCommentHistory(
     },
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Fetches the student dossier using Registration Number as primary key.
+ * Strictly admin-only. Never falls back to email or another student.
+ */
+export async function getStudentDossier(
+  token: string,
+  registrationNumber: string
+): Promise<ApiResponse<StudentDossierData>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend<StudentDossierData>({
+        action: 'getStudentDossier',
+        token,
+        registrationNumber
+      });
+    } catch {
+      // Fall through to mockStorage in dev/mock mode
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  return mockStorage.getStudentDossier(registrationNumber);
 }

@@ -46,6 +46,7 @@
   min-width: 130px;
   padding: 0.85rem 1rem;
   background: var(--portal-card-bg);
+  color: var(--portal-text);
   border: 1px solid var(--portal-border);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -63,24 +64,30 @@
 
 .date-tab-button.active {
   background: var(--portal-primary);
-  border-color: var(--portal-primary);
+  border-color: #FDB813;
   color: #ffffff;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 2px #FDB813;
 }
 
 .date-tab-button .day-label {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  opacity: 0.8;
+  color: var(--portal-text-muted);
+  opacity: 0.9;
 }
 
 .date-tab-button .date-label {
   font-size: 1.05rem;
   font-weight: 700;
+  color: var(--portal-text);
 }
 
-.date-tab-button.active .day-label,
+.date-tab-button.active .day-label {
+  color: #FDB813;
+  opacity: 1;
+}
+
 .date-tab-button.active .date-label {
   color: #ffffff;
 }
@@ -89,7 +96,7 @@
 .slot-section-title {
   font-size: 1.15rem;
   font-weight: 700;
-  color: var(--portal-text);
+  color: #ffffff;
   margin: 1.5rem 0 0.85rem;
   display: flex;
   align-items: center;
@@ -105,6 +112,7 @@
 
 .slot-card {
   background: var(--portal-card-bg);
+  color: var(--portal-text);
   border: 1px solid var(--portal-border);
   border-radius: var(--radius-md);
   padding: 1rem;
@@ -239,6 +247,7 @@
 
 .modal-content {
   background: #ffffff;
+  color: var(--portal-text);
   border-radius: var(--radius-lg);
   max-width: 540px;
   width: 100%;
@@ -328,6 +337,7 @@
 
 .summary-card {
   background: var(--portal-card-bg);
+  color: var(--portal-text);
   border: 1px solid var(--portal-border);
   border-radius: var(--radius-md);
   padding: 1rem;
@@ -369,6 +379,7 @@
 /* ─── Search & Filters Bar ───────────────────────────────── */
 .filter-bar-container {
   background: var(--portal-card-bg);
+  color: var(--portal-text);
   border: 1px solid var(--portal-border);
   border-radius: var(--radius-md);
   padding: 1.25rem;
@@ -494,6 +505,7 @@
 /* ─── Expandable Student Profile Panel ───────────────────── */
 .student-profile-expanded-panel {
   background: #fbfdfc;
+  color: var(--portal-text);
   padding: 1.5rem;
   border-bottom: 2px solid #e2ede7;
 }
@@ -551,7 +563,7 @@
   gap: 1rem;
   margin-top: 1rem;
   font-size: 0.9rem;
-  color: var(--portal-text-muted);
+  color: #d2e5dc;
 }
 
 .pagination-controls-buttons {
@@ -620,36 +632,51 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--portal-border);
-  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.75rem;
 }
 
 .admin-subnav-btn {
   padding: 0.55rem 1rem;
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--portal-text-muted);
+  color: #d2e5dc;
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.admin-subnav-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 .admin-subnav-btn.active {
-  background: var(--portal-primary-light);
-  color: var(--portal-primary);
+  background: #ffffff;
+  color: #00392F;
+  border-color: #ffffff;
+  font-weight: 750;
 }
 
 .counter-bubble {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  border: 1px solid var(--portal-border);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.admin-subnav-btn.active .counter-bubble {
+  background: #00392F;
+  color: #ffffff;
+  border-color: #00392F;
 }
 
 /* ─── Administrative Review & Comments Section ───────────── */

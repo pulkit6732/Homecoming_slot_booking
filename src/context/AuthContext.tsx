@@ -48,6 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data } = await supabase.auth.getSession()
           if (data.session?.user?.email) {
+            // Check authoritative email confirmation
+            const isEmailVerified = Boolean(
+              data.session.user.email_confirmed_at ||
+              (data.session.user.app_metadata &&
+                ['google', 'sso', 'saml'].includes(data.session.user.app_metadata.provider as string))
+            )
+
+            if (!isEmailVerified) {
+              setUser(null)
+              setIsLoading(false)
+              return
+            }
+
+            const token = data.session.access_token || undefined
             const userEmail = data.session.user.email.toLowerCase()
             const appRole = (data.session.user.app_metadata?.role || data.session.user.user_metadata?.role) as string | undefined
 
@@ -56,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 id: data.session.user.id,
                 email: userEmail,
                 role: 'admin',
+                accessToken: token,
               })
             } else {
               const matchedStudent = resolveStudentFromIdentifier(userEmail)
@@ -65,12 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   email: matchedStudent.gitamEmail,
                   role: 'student',
                   studentProfile: matchedStudent,
+                  accessToken: token,
                 })
               } else {
                 setUser({
                   id: data.session.user.id,
                   email: userEmail,
                   role: 'unregistered',
+                  accessToken: token,
                 })
               }
             }
@@ -168,6 +185,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.user?.email) {
+          const isEmailVerified = Boolean(
+            data.user.email_confirmed_at ||
+            (data.user.app_metadata &&
+              ['google', 'sso', 'saml'].includes(data.user.app_metadata.provider as string))
+          )
+
+          if (!isEmailVerified) {
+            setError('Institutional email address has not been verified. Please check your inbox.')
+            setIsLoading(false)
+            return false
+          }
+
+          const token = data.session?.access_token || undefined
           const userEmail = data.user.email.toLowerCase()
           const appRole = (data.user.app_metadata?.role || data.user.user_metadata?.role) as string | undefined
 
@@ -176,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: data.user.id,
               email: userEmail,
               role: 'admin',
+              accessToken: token,
             }
             setUser(adminUser)
             setIsLoading(false)
@@ -189,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: matchedStudent.gitamEmail,
               role: 'student',
               studentProfile: matchedStudent,
+              accessToken: token,
             }
             setUser(studentUser)
             setIsLoading(false)
@@ -199,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: data.user.id,
             email: userEmail,
             role: 'unregistered',
+            accessToken: token,
           }
           setUser(unregUser)
           setIsLoading(false)
@@ -234,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: `DEV-ADMIN-${Date.now()}`,
         email: lowerIdent,
         role: 'admin',
+        accessToken: 'DEV_MOCK_ADMIN_TOKEN',
       }
       setUser(adminUser)
       try {
@@ -264,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: matchedStudent.gitamEmail,
       role: 'student',
       studentProfile: matchedStudent,
+      accessToken: 'DEV_MOCK_STUDENT_TOKEN',
     }
     setUser(studentUser)
     try {

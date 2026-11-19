@@ -2,7 +2,15 @@ import { useState, useCallback, useEffect } from 'react'
 import type { SearchFilters, Student } from '../../types'
 import { ELIGIBLE_DATES } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
-import { getAdminSchedule, getAdminSummary, isLiveBackendConfigured } from '../../services/appsScriptClient'
+import {
+  getAdminSchedule,
+  getAdminSummary,
+  changeApprovalStatus,
+  changeReviewFlag,
+  cancelBooking,
+  isLiveBackendConfigured,
+} from '../../services/appsScriptClient'
+import { useAuth } from '../../hooks/useAuth'
 import { useLiveSync } from '../../hooks/useLiveSync'
 import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
 import { DateSelector } from '../../components/student/DateSelector'
@@ -19,6 +27,10 @@ type AdminTab = 'SCHEDULE' | 'FLAGGED' | 'UNBOOKED'
 type ScheduleSubView = 'GRID' | 'TABLE'
 
 export function AdminPage() {
+  const { user } = useAuth()
+  const sessionToken = user?.accessToken || 'DEV_MOCK_ADMIN_TOKEN'
+  const adminEmail = user?.email || 'admin@gitam.in'
+
   const [activeTab, setActiveTab] = useState<AdminTab>('SCHEDULE')
   const [scheduleSubView, setScheduleSubView] = useState<ScheduleSubView>('GRID')
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -77,11 +89,32 @@ export function AdminPage() {
   // Refresh callback that performs an actual backend or storage fetch
   const refreshAdminData = useCallback(async () => {
     if (isLiveBackendConfigured()) {
-      const scheduleRes = await getAdminSchedule('ADMIN_SESSION_TOKEN', selectedDate)
-      const summaryRes = await getAdminSummary('ADMIN_SESSION_TOKEN', selectedDate)
+      const scheduleRes = await getAdminSchedule(sessionToken, selectedDate)
+      const summaryRes = await getAdminSummary(sessionToken, selectedDate)
       if (scheduleRes.success && summaryRes.success) {
-        setDaySummary(mockStorage.getDaySummary(selectedDate))
-        setSlotsForDate(mockStorage.getSlotsForDate(selectedDate))
+        setDaySummary({
+          date: selectedDate,
+          displayDate: ELIGIBLE_DATES.find((d) => d.date === selectedDate)?.displayDate || selectedDate,
+          totalSlots: scheduleRes.data.totalSlots,
+          booked: summaryRes.data.bookedStudents,
+          available: scheduleRes.data.totalSlots - summaryRes.data.bookedStudents,
+          pending: summaryRes.data.pendingReview,
+          approved: summaryRes.data.approvedStudents,
+          rejected: summaryRes.data.rejectedStudents,
+          flagged: summaryRes.data.flaggedStudents,
+        })
+        setSlotsForDate(
+          scheduleRes.data.slots.map((s) => ({
+            date: selectedDate,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            displayStart: s.displayStart,
+            displayEnd: s.displayEnd,
+            session: s.session.toLowerCase() as 'morning' | 'afternoon',
+            slotIndex: s.slotIndex,
+            status: s.status,
+          }))
+        )
         setAllStudents(mockStorage.getAllStudents())
         return
       }
@@ -95,7 +128,7 @@ export function AdminPage() {
     setDaySummary(mockStorage.getDaySummary(selectedDate))
     setSlotsForDate(mockStorage.getSlotsForDate(selectedDate))
     setAllStudents(mockStorage.getAllStudents())
-  }, [selectedDate])
+  }, [selectedDate, sessionToken])
 
   // Near-real-time synchronization (8-second interval polling, tab focus, multi-tab sync)
   const { lastUpdated, isSyncing, syncError, triggerSync } = useLiveSync({
@@ -132,32 +165,52 @@ export function AdminPage() {
   }
 
   // Confirm Approve
-  const handleConfirmApprove = (studentId: string, comment: string) => {
-    mockStorage.approveStudent(studentId, comment, 'Administrator')
+  const handleConfirmApprove = async (studentId: string, comment: string) => {
+    if (isLiveBackendConfigured()) {
+      await changeApprovalStatus(sessionToken, studentId, 'Approved', comment, adminEmail)
+    } else {
+      mockStorage.approveStudent(studentId, comment, adminEmail)
+    }
     void triggerSync()
   }
 
   // Confirm Reject
-  const handleConfirmReject = (studentId: string, reason: string) => {
-    mockStorage.rejectStudent(studentId, reason, 'Administrator')
+  const handleConfirmReject = async (studentId: string, reason: string) => {
+    if (isLiveBackendConfigured()) {
+      await changeApprovalStatus(sessionToken, studentId, 'Rejected', reason, adminEmail)
+    } else {
+      mockStorage.rejectStudent(studentId, reason, adminEmail)
+    }
     void triggerSync()
   }
 
   // Confirm Flag
-  const handleConfirmFlag = (studentId: string, reason: string) => {
-    mockStorage.flagStudent(studentId, reason, 'Administrator')
+  const handleConfirmFlag = async (studentId: string, reason: string) => {
+    if (isLiveBackendConfigured()) {
+      await changeReviewFlag(sessionToken, studentId, 'Yellow Flagged', reason, adminEmail)
+    } else {
+      mockStorage.flagStudent(studentId, reason, adminEmail)
+    }
     void triggerSync()
   }
 
   // Confirm Clear Flag
-  const handleConfirmClearFlag = (studentId: string) => {
-    mockStorage.clearFlag(studentId)
+  const handleConfirmClearFlag = async (studentId: string) => {
+    if (isLiveBackendConfigured()) {
+      await changeReviewFlag(sessionToken, studentId, 'Not Flagged', 'Flag cleared', adminEmail)
+    } else {
+      mockStorage.clearFlag(studentId)
+    }
     void triggerSync()
   }
 
   // Confirm Cancel / Remove Slot Reservation
-  const handleConfirmCancelBooking = (studentId: string) => {
-    mockStorage.cancelBooking(studentId, 'Administrator')
+  const handleConfirmCancelBooking = async (studentId: string) => {
+    if (isLiveBackendConfigured()) {
+      await cancelBooking(sessionToken, studentId)
+    } else {
+      mockStorage.cancelBooking(studentId, adminEmail)
+    }
     void triggerSync()
   }
 
@@ -284,7 +337,7 @@ export function AdminPage() {
             }}
           >
             <div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--portal-text)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase' }}>
                 Inspection Mode:
               </span>
             </div>

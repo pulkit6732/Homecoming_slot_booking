@@ -143,3 +143,11 @@ export interface ReviewActionData {
   flagClearedBy?: string | undefined;
   flagClearedAt?: string | undefined;
 }
+
+export type StudentDossierData = import('./index').StudentDossier;
+
+export interface GetDossierPayload {
+  action: 'getStudentDossier';
+  token: string;
+  registrationNumber: string;
+}

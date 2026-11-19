@@ -4,8 +4,12 @@ import type {
   SearchFilters,
   SlotWithStatus,
   Student,
+  StudentDossier,
+  OriginalFormSubmission,
+  AdminReviewData,
 } from '../types'
 import { formatTime12h, generateDaySlots, getDisplayDate, isValidSlot } from '../utils/schedule.ts'
+import { normalizeRegistrationNumber } from './studentDataMapper.ts'
 
 const STORAGE_KEYS = {
   STUDENTS: 'gitam_mock_students_v1',
@@ -15,6 +19,7 @@ const STORAGE_KEYS = {
 class MockStorageService {
   private inMemoryStudents: Student[] = []
   private inMemoryBookings: BookingConfirmation[] = []
+  private rawFormSubmissions: Record<string, unknown>[] = []
 
   constructor() {
     this.init()
@@ -475,6 +480,246 @@ class MockStorageService {
       flagReason: student.flagReason || '',
       comments: student.adminComments || [],
       reviewHistory: student.reviewHistory || [],
+    }
+  }
+
+  public setRawFormSubmissions(submissions: Record<string, unknown>[]) {
+    this.rawFormSubmissions = submissions
+  }
+
+  public getRawFormSubmissions(): Record<string, unknown>[] {
+    return this.rawFormSubmissions
+  }
+
+  /**
+   * Retrieves complete student dossier using exact Registration Number as lookup key.
+   * Conforms to:
+   * 1. Registration Number is the unique identifier (email, row, name fallback prohibited).
+   * 2. Exactly 1 match: returns dossier.
+   * 3. 0 matches: returns controlled SUBMISSION_NOT_FOUND error.
+   * 4. >1 matches: returns controlled AMBIGUOUS_REGISTRATION warning.
+   * 5. Missing Registration Number: returns controlled MISSING_REGISTRATION_NUMBER error.
+   * 6. Completely separates original form submission from admin review data.
+   */
+  public getStudentDossier(registrationNumber: string): import('../types/api').ApiResponse<StudentDossier> {
+    const normalized = normalizeRegistrationNumber(registrationNumber)
+    const nowIso = new Date().toISOString()
+
+    if (!normalized) {
+      return {
+        success: false,
+        error: {
+          code: 'MISSING_REGISTRATION_NUMBER',
+          message: 'Data integrity error: Registration Number is missing or empty. Lookup prevented.',
+        },
+        timestamp: nowIso,
+      }
+    }
+
+    const regHeaders = [
+      'Registration Number',
+      'Registration no.',
+      'Registration No',
+      'Reg No',
+      'Reg. No.',
+      'Roll Number',
+      'Roll No',
+      'StudentID',
+      'Student ID',
+    ]
+
+    // 1. Search in rawFormSubmissions if populated
+    const matches: { raw: Record<string, unknown>; studentRef?: Student | undefined }[] = []
+
+    if (this.rawFormSubmissions.length > 0) {
+      for (const row of this.rawFormSubmissions) {
+        let rowReg = ''
+        for (const h of regHeaders) {
+          const lowerH = h.toLowerCase()
+          for (const k of Object.keys(row)) {
+            if (k.trim().toLowerCase() === lowerH) {
+              const val = row[k]
+              if (val !== undefined && val !== null) {
+                rowReg = normalizeRegistrationNumber(val)
+                break
+              }
+            }
+          }
+          if (rowReg) break
+        }
+        if (rowReg === normalized) {
+          // Find matching student in database for separate admin review data
+          const studentRef = this.inMemoryStudents.find(
+            (s) => normalizeRegistrationNumber(s.registrationNumber || s.rollNumber || (!s.studentId.includes('@') ? s.studentId : '')) === normalized
+          )
+          matches.push({ raw: row, studentRef })
+        }
+      }
+    } else {
+      // Search in inMemoryStudents
+      for (const s of this.inMemoryStudents) {
+        const sReg = normalizeRegistrationNumber(s.registrationNumber || s.rollNumber || (!s.studentId.includes('@') ? s.studentId : ''))
+        if (sReg === normalized) {
+          // Synthesize original raw record from student's submitted fields
+          const raw: Record<string, unknown> = {
+            'Registration Number': s.registrationNumber || s.rollNumber,
+            'Full Name': s.fullName,
+            'Email Address': s.gitamEmail,
+            'Personal Email': s.personalEmail,
+            'Phone Number': s.phoneNumber,
+            'Date of Birth': s.dateOfBirth,
+            'Gender': s.gender,
+            'Address': s.address,
+            'City': s.city,
+            'State': s.state,
+            'Country': s.country,
+            'Program': s.program,
+            'Branch': s.branch,
+            'Academic Year': s.academicYear,
+            'Section': s.section,
+            'CGPA': s.cgpa,
+            'Backlogs': s.backlogs,
+            'Highest Qualification': s.highestQualification,
+            'University/College': s.universityCollege,
+            'Year of Passing': s.yearOfPassing,
+            'Primary Preference': s.committeePreferences || s.domainPreference1,
+            'Secondary Preference': s.domainPreference2,
+            'Tertiary Preference': s.domainPreference3,
+            'Roles Applied For': s.rolesAppliedFor,
+            'Written Application': s.writtenApplication || s.projects,
+            'Prior Experience': s.workExperience,
+            'Internships': s.internships,
+            'Technical Skills': s.technicalSkills,
+            'Soft Skills': s.softSkills,
+            'Certifications': s.certifications,
+            'Achievements': s.achievements,
+            'Availability & Commute': s.availabilityCommute,
+            'Resume Link': s.resumeLink,
+            'Document Links': s.documentLinks,
+            'Timestamp': s.formSubmissionTimestamp,
+          }
+          matches.push({ raw, studentRef: s })
+        }
+      }
+    }
+
+    if (matches.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: 'SUBMISSION_NOT_FOUND',
+          message: `Original form submission not found for Registration Number: ${registrationNumber}`,
+        },
+        timestamp: nowIso,
+      }
+    }
+
+    if (matches.length > 1) {
+      return {
+        success: false,
+        error: {
+          code: 'AMBIGUOUS_REGISTRATION',
+          message: `Multiple submissions (${matches.length}) found for Registration Number: ${registrationNumber}. Ambiguity warning: automated selection prevented.`,
+          details: { count: matches.length },
+        },
+        timestamp: nowIso,
+      }
+    }
+
+    // Exactly 1 match
+    const match = matches[0]!
+    const raw = match.raw
+    const student = match.studentRef
+
+    const getField = (candidates: string[]): string => {
+      const keys = Object.keys(raw)
+      for (const c of candidates) {
+        const cLower = c.toLowerCase()
+        for (const k of keys) {
+          if (k.trim().toLowerCase() === cLower) {
+            const v = raw[k]
+            if (v !== undefined && v !== null) return String(v).trim()
+          }
+        }
+      }
+      return ''
+    }
+
+    const rawCgpa = getField(['CGPA', 'Current CGPA', 'Grade Point Average'])
+    const cgpaVal = rawCgpa ? parseFloat(rawCgpa) : (student?.cgpa || 0)
+    const rawBacklogs = getField(['Backlogs', 'Active Backlogs'])
+    const backlogsVal = rawBacklogs ? parseInt(rawBacklogs, 10) : (student?.backlogs || 0)
+
+    const originalSubmission: OriginalFormSubmission = {
+      timestamp: getField(['Timestamp', 'Submission Timestamp', 'FormSubmissionTimestamp']) || student?.formSubmissionTimestamp || '',
+      registrationNumber: normalized,
+      fullName: getField(['FullName', 'Full Name', 'Name', 'Student Name', 'Candidate Name']) || student?.fullName || '',
+      email: getField(['GITAM Email', 'GITAM Email Address', 'Student Email', 'Email Address', 'Email', 'Candidate Email']) || student?.gitamEmail || '',
+      personalEmail: getField(['Personal Email', 'Alternate Email']) || student?.personalEmail || '',
+      phoneNumber: getField(['PhoneNumber', 'Phone Number', 'Phone', 'Mobile Number', 'Contact Number']) || student?.phoneNumber || '',
+      dateOfBirth: getField(['DateOfBirth', 'Date of Birth', 'DOB']) || student?.dateOfBirth || '',
+      gender: getField(['Gender', 'Sex']) || student?.gender || '',
+      address: getField(['Address', 'Residential Address']) || student?.address || '',
+      city: getField(['City']) || student?.city || '',
+      state: getField(['State']) || student?.state || '',
+      country: getField(['Country']) || student?.country || '',
+      program: getField(['Program', 'Degree', 'Course']) || student?.program || '',
+      branch: getField(['Branch', 'Department', 'Specialization']) || student?.branch || '',
+      academicYear: getField(['AcademicYear', 'Academic Year', 'Year']) || student?.academicYear || '',
+      section: getField(['Section', 'Class Section']) || student?.section || '',
+      cgpa: isNaN(cgpaVal) ? (rawCgpa || 0) : cgpaVal,
+      backlogs: isNaN(backlogsVal) ? (rawBacklogs || 0) : backlogsVal,
+      highestQualification: getField(['HighestQualification', 'Highest Qualification']) || student?.highestQualification || '',
+      universityCollege: getField(['UniversityCollege', 'College', 'University']) || student?.universityCollege || '',
+      yearOfPassing: getField(['YearOfPassing', 'Passing Year']) || student?.yearOfPassing || '',
+      committeePreferences: {
+        primary: getField(['DomainPreference1', 'Preference 1', 'Primary Preference', 'Committee Preferences']) || student?.domainPreference1 || '',
+        secondary: getField(['DomainPreference2', 'Preference 2', 'Secondary Preference']) || student?.domainPreference2 || '',
+        tertiary: getField(['DomainPreference3', 'Preference 3', 'Tertiary Preference']) || student?.domainPreference3 || '',
+      },
+      rolesAppliedFor: getField(['RolesAppliedFor', 'Roles Applied For', 'Applied Positions', 'Applied Tracks']) || student?.rolesAppliedFor || '',
+      writtenApplication: getField(['WrittenApplication', 'Written Application', 'Statement of Purpose', 'Projects', 'Project Highlights']) || student?.writtenApplication || student?.projects || '',
+      priorExperience: getField(['WorkExperience', 'Experience', 'Prior Committee Experience']) || student?.workExperience || '',
+      internships: getField(['Internships', 'Internship Experience']) || student?.internships || '',
+      technicalSkills: getField(['TechnicalSkills', 'Technical Skills']) || student?.technicalSkills || '',
+      softSkills: getField(['SoftSkills', 'Soft Skills']) || student?.softSkills || '',
+      certifications: getField(['Certifications']) || student?.certifications || '',
+      achievements: getField(['Achievements']) || student?.achievements || '',
+      availabilityCommute: getField(['AvailabilityCommute', 'Availability', 'Interview Day Availability', 'Commute']) || student?.availabilityCommute || '',
+      eventCommitment: getField(['EventCommitment', 'Event Week Commitment']) || '',
+      resumeLink: getField(['ResumeLink', 'Resume Link', 'Resume', 'Upload Resume']) || student?.resumeLink || '',
+      documentLinks: getField(['DocumentLinks', 'Document Links', 'Verification Documents', 'Certificates']) || student?.documentLinks || '',
+      allRawResponses: raw,
+    }
+
+    const adminReviewData: AdminReviewData = {
+      approvalStatus: student?.approvalStatus || 'Pending',
+      decisionBy: student?.decisionBy || '',
+      decisionTimestamp: student?.decisionTimestamp || '',
+      decisionComment: student?.decisionComment || '',
+      reviewFlagStatus: student?.reviewFlagStatus || 'Not Flagged',
+      flaggedBy: student?.flaggedBy || '',
+      flaggedAt: student?.flaggedAt || '',
+      flagReason: student?.flagReason || '',
+      bookingStatus: student?.bookingStatus || 'Not Booked',
+      bookingId: student?.bookingId || '',
+      bookingRequestId: student?.bookingRequestId || '',
+      bookedDate: student?.bookedDate || '',
+      bookedSlotStart: student?.bookedSlotStart || '',
+      bookedSlotEnd: student?.bookedSlotEnd || '',
+      bookedTimestamp: student?.bookedTimestamp || '',
+      adminComments: student?.adminComments || [],
+      reviewHistory: student?.reviewHistory || [],
+    }
+
+    return {
+      success: true,
+      data: {
+        registrationNumber: normalized,
+        originalSubmission,
+        adminReviewData,
+      },
+      timestamp: nowIso,
     }
   }
 

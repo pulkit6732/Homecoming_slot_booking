@@ -24,6 +24,22 @@ function decodeBase64Url(base64UrlStr) {
 }
 
 /**
+ * Constant-time string equality check to mitigate timing side-channel attacks on signatures.
+ * @param {string} a
+ * @param {string} b
+ * @return {boolean}
+ */
+function constantTimeEquals(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  var result = 0;
+  for (var i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+/**
  * Validates a Supabase-issued JWT token.
  * 
  * Strict Cryptographic & Claims Validation:
@@ -156,7 +172,8 @@ function validateSupabaseToken(token) {
   }
 
   // Email claim & verification status
-  var email = payload.email || (payload.user_metadata && payload.user_metadata.email) || '';
+  // Server-authoritative: email must be a top-level claim, NOT user_metadata
+  var email = payload.email || '';
   if (!email || typeof email !== 'string') {
     return {
       valid: false,
@@ -164,19 +181,20 @@ function validateSupabaseToken(token) {
     };
   }
 
+  // Server-authoritative email verification check:
+  // user_metadata.email_verified is client-editable in Supabase and MUST NOT be trusted.
+  // We only trust server-stamped email_confirmed_at or server-controlled app_metadata.
   var isEmailVerified = false;
   if (payload.email_confirmed_at && typeof payload.email_confirmed_at === 'string') {
     isEmailVerified = true;
-  } else if (payload.user_metadata && payload.user_metadata.email_verified === true) {
-    isEmailVerified = true;
-  } else if (payload.app_metadata && payload.app_metadata.provider === 'google') {
+  } else if (payload.app_metadata && (payload.app_metadata.provider === 'google' || payload.app_metadata.provider === 'sso' || payload.app_metadata.provider === 'saml')) {
     isEmailVerified = true;
   }
 
   if (!isEmailVerified) {
     return {
       valid: false,
-      error: { code: CONFIG.ERROR_CODES.AUTH_UNVERIFIED_EMAIL, message: 'Account email has not been verified' }
+      error: { code: CONFIG.ERROR_CODES.AUTH_UNVERIFIED_EMAIL, message: 'Account email has not been verified by authoritative identity provider' }
     };
   }
 
@@ -199,36 +217,66 @@ function validateSupabaseToken(token) {
     var computedSignatureB64 = Utilities.base64EncodeWebSafe(computedSignatureBytes).replace(/=/g, '');
     var incomingSignatureB64 = parts[2].replace(/=/g, '');
 
-    if (computedSignatureB64 !== incomingSignatureB64) {
+    // Constant-time string comparison to prevent timing side-channel attacks
+    if (!constantTimeEquals(computedSignatureB64, incomingSignatureB64)) {
       return {
         valid: false,
         error: { code: CONFIG.ERROR_CODES.AUTH_INVALID, message: 'Invalid token signature' }
       };
     }
   } else if (alg === 'RS256' || alg === 'ES256') {
-    var pubKey = getScriptProperty('SUPABASE_PUBLIC_KEY', '');
-    var jwksUrl = getScriptProperty('SUPABASE_JWKS_URL', '');
-    if (!pubKey && !jwksUrl) {
+    // Google Apps Script runtime does not natively support RSA/ECDSA public-key verification.
+    // When configured with SUPABASE_URL and SUPABASE_ANON_KEY, verify online via Supabase auth service.
+    var supabaseAuthUrl = getScriptProperty('SUPABASE_URL', '');
+    var supabaseAnonKey = getScriptProperty('SUPABASE_ANON_KEY', '');
+    
+    if (supabaseAuthUrl && supabaseAnonKey) {
+      try {
+        var verifyEndpoint = supabaseAuthUrl.replace(/\/+$/, '') + '/auth/v1/user';
+        var verifyResp = UrlFetchApp.fetch(verifyEndpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'apikey': supabaseAnonKey
+          },
+          muteHttpExceptions: true
+        });
+
+        if (verifyResp.getResponseCode() !== 200) {
+          return {
+            valid: false,
+            error: { code: CONFIG.ERROR_CODES.AUTH_INVALID, message: 'Supabase identity service rejected token' }
+          };
+        }
+
+        var verifiedUser = JSON.parse(verifyResp.getContentText());
+        if (!verifiedUser || verifiedUser.id !== payload.sub) {
+          return {
+            valid: false,
+            error: { code: CONFIG.ERROR_CODES.AUTH_INVALID, message: 'Token subject mismatch with identity service' }
+          };
+        }
+      } catch (networkErr) {
+        return {
+          valid: false,
+          error: { code: CONFIG.ERROR_CODES.AUTH_INVALID, message: 'Failed to contact Supabase identity service: ' + networkErr.message }
+        };
+      }
+    } else {
+      // Strict fail-closed: Never accept unverified asymmetric JWT without verification endpoint
       return {
         valid: false,
         error: {
-          code: CONFIG.ERROR_CODES.AUTH_CONFIG_MISSING,
-          message: 'Server public key or JWKS configuration is missing for ' + alg + '. Refusing unverified request.'
+          code: CONFIG.ERROR_CODES.AUTH_INVALID_ALGORITHM,
+          message: 'Asymmetric token algorithm ' + alg + ' cannot be verified offline. Configure SUPABASE_JWT_SECRET with HS256, or provide SUPABASE_URL and SUPABASE_ANON_KEY for online verification.'
         }
       };
     }
-    // Asymmetric validation: when configured, public key verifies signature
-    if (pubKey) {
-      var signedData = parts[0] + '.' + parts[1];
-      var rsaSignatureBytes = Utilities.computeRsaSha256Signature(signedData, pubKey);
-      var computedRsaB64 = Utilities.base64EncodeWebSafe(rsaSignatureBytes).replace(/=/g, '');
-      if (computedRsaB64 !== parts[2].replace(/=/g, '')) {
-        return {
-          valid: false,
-          error: { code: CONFIG.ERROR_CODES.AUTH_INVALID, message: 'Invalid token signature' }
-        };
-      }
-    }
+  } else {
+    return {
+      valid: false,
+      error: { code: CONFIG.ERROR_CODES.AUTH_INVALID_ALGORITHM, message: 'Unsupported token algorithm: ' + alg }
+    };
   }
 
   return {
@@ -333,6 +381,16 @@ function authenticateStudent(token) {
       error: {
         code: CONFIG.ERROR_CODES.UNREGISTERED_STUDENT,
         message: 'Account (' + email + ') is not registered in the student database'
+      }
+    };
+  }
+
+  if (studentRecord.isAmbiguous) {
+    return {
+      authorized: false,
+      error: {
+        code: 'AMBIGUOUS_STUDENT_RECORD',
+        message: 'Multiple registrations were found for (' + email + '). Please contact the university administrator to resolve the ambiguity before booking.'
       }
     };
   }

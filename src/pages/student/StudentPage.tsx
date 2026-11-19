@@ -214,8 +214,8 @@ export function StudentPage() {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <span className="status-badge badge-booked">Reserved</span>
-              <span className={`status-badge badge-${currentStudent.approvalStatus.toLowerCase()}`}>
-                Review: {currentStudent.approvalStatus}
+              <span className={`status-badge badge-${(currentStudent.approvalStatus || 'Pending').toLowerCase()}`}>
+                Review: {currentStudent.approvalStatus || 'Pending'}
               </span>
             </div>
           </div>
@@ -253,6 +253,7 @@ export function StudentPage() {
           alignItems: 'center',
           padding: '0.85rem 1.25rem',
           backgroundColor: '#ffffff',
+          color: 'var(--portal-text)',
           border: '1px solid var(--portal-border)',
           borderRadius: 'var(--radius-md)',
           marginBottom: '1.5rem',

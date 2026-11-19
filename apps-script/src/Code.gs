@@ -42,6 +42,11 @@ function doGet(e) {
         var studentId = params.studentId || '';
         return createJsonResponse(getStudentDetails(detailsToken, studentId));
 
+      case 'getStudentDossier':
+        var dosToken = params.token || '';
+        var dosReg = params.registrationNumber || params.regNo || params.studentId || '';
+        return createJsonResponse(getStudentDossier(dosToken, dosReg));
+
       case 'getReviewDetails':
         var revToken = params.token || '';
         var revStudentId = params.studentId || '';

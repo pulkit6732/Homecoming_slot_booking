@@ -62,6 +62,7 @@ export function LoginPage() {
       <div
         style={{
           background: 'var(--portal-card-bg)',
+          color: 'var(--portal-text)',
           border: '1px solid var(--portal-border)',
           borderRadius: 'var(--radius-lg)',
           padding: '2rem',

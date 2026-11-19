@@ -30,10 +30,14 @@ export function StudentTable({ students, onTriggerReviewAction, onRefreshData }:
 
   // Sorting: Chronological by booked date then slot start
   const sortedStudents = [...students].sort((a, b) => {
-    if (a.bookedDate !== b.bookedDate) {
-      return a.bookedDate.localeCompare(b.bookedDate)
+    const dateA = a.bookedDate || ''
+    const dateB = b.bookedDate || ''
+    if (dateA !== dateB) {
+      return dateA.localeCompare(dateB)
     }
-    return a.bookedSlotStart.localeCompare(b.bookedSlotStart)
+    const slotA = a.bookedSlotStart || ''
+    const slotB = b.bookedSlotStart || ''
+    return slotA.localeCompare(slotB)
   })
 
   // Pagination calculation
@@ -121,7 +125,7 @@ export function StudentTable({ students, onTriggerReviewAction, onRefreshData }:
                       <div style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{student.rollNumber}</div>
                       <div style={{ fontSize: '0.85rem' }}>{student.branch}</div>
                       <div>
-                        <strong>{student.cgpa.toFixed(2)}</strong>
+                        <strong>{(Number(student.cgpa) || 0).toFixed(2)}</strong>
                       </div>
                       <div>
                         <Badge type="approval" status={student.approvalStatus} />
@@ -135,8 +139,9 @@ export function StudentTable({ students, onTriggerReviewAction, onRefreshData }:
                           className="btn-table-action"
                           onClick={() => toggleExpand(student.studentId)}
                           aria-expanded={isExpanded}
+                          title={isExpanded ? 'Hide student dossier' : 'View full student dossier'}
                         >
-                          {isExpanded ? 'Hide Details' : 'View Full Details'}
+                          {isExpanded ? 'Hide Dossier' : 'Dossier'}
                         </button>
 
                         <button

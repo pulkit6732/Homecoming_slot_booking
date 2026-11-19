@@ -72,6 +72,7 @@ export interface DaySummary {
 export interface Student {
   // Identity
   studentId: string
+  registrationNumber?: string | undefined
   fullName: string
   firstName: string
   lastName: string
@@ -186,3 +187,73 @@ export interface PaginationState {
 }
 
 export type EntriesPerPage = 10 | 25 | 50 | 'all'
+
+// ─── Student Dossier (Original Form Submission & Separate Admin Review Data) ───
+
+export interface OriginalFormSubmission {
+  timestamp?: string
+  registrationNumber: string
+  fullName: string
+  email: string
+  personalEmail?: string
+  phoneNumber?: string
+  dateOfBirth?: string
+  gender?: string
+  address?: string
+  city?: string
+  state?: string
+  country?: string
+  program?: string
+  branch?: string
+  academicYear?: string
+  section?: string
+  cgpa?: number | string
+  backlogs?: number | string
+  highestQualification?: string
+  universityCollege?: string
+  yearOfPassing?: string
+  committeePreferences?: {
+    primary?: string
+    secondary?: string
+    tertiary?: string
+  }
+  rolesAppliedFor?: string
+  writtenApplication?: string
+  priorExperience?: string
+  internships?: string
+  technicalSkills?: string
+  softSkills?: string
+  certifications?: string
+  achievements?: string
+  availabilityCommute?: string
+  eventCommitment?: string
+  resumeLink?: string
+  documentLinks?: string
+  allRawResponses: Record<string, unknown>
+}
+
+export interface AdminReviewData {
+  approvalStatus: ApprovalStatus
+  decisionBy?: string
+  decisionTimestamp?: string
+  decisionComment?: string
+  reviewFlagStatus: ReviewFlagStatus
+  flaggedBy?: string
+  flaggedAt?: string
+  flagReason?: string
+  bookingStatus: BookingStatus
+  bookingId?: string
+  bookingRequestId?: string
+  bookedDate?: string
+  bookedSlotStart?: string
+  bookedSlotEnd?: string
+  bookedTimestamp?: string
+  adminComments: AdminComment[]
+  reviewHistory: ReviewHistoryEntry[]
+}
+
+export interface StudentDossier {
+  registrationNumber: string
+  originalSubmission: OriginalFormSubmission
+  adminReviewData: AdminReviewData
+}

@@ -24,5 +24,5 @@ export function Badge({ type, status }: BadgeProps) {
     else badgeClass += ' badge-pending'
   }
 
-  return <span className={badgeClass}>{status}</span>
+  return <span className={badgeClass}>{status || 'Pending'}</span>
 }
