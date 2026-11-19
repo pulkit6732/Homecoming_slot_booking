@@ -8,11 +8,11 @@ interface BookingModalProps {
   isOpen: boolean
   onClose: () => void
   slot: SlotWithStatus | null
-  onConfirmBooking: (studentId: string, slot: SlotWithStatus) => {
+  onConfirmBooking: (studentId: string, slot: SlotWithStatus) => Promise<{
     success: boolean
     message: string
     confirmation?: BookingConfirmation
-  }
+  }>
 }
 
 export function BookingModal({
@@ -30,8 +30,9 @@ export function BookingModal({
 
   if (!slot) return null
 
-  const handleBooking = () => {
-    if (!student) {
+  const handleBooking = async () => {
+    const studentId = student?.studentId ?? user?.id
+    if (!studentId) {
       setErrorMessage('You must be signed in as a registered student to book an interview slot.')
       return
     }
@@ -39,17 +40,18 @@ export function BookingModal({
     setErrorMessage(null)
     setIsSubmitting(true)
 
-    // Execute booking bound strictly to authenticated student ID
-    setTimeout(() => {
-      const result = onConfirmBooking(student.studentId, slot)
-      setIsSubmitting(false)
-
+    try {
+      const result = await onConfirmBooking(studentId, slot)
       if (result.success && result.confirmation) {
         setConfirmationReceipt(result.confirmation)
       } else {
         setErrorMessage(result.message)
       }
-    }, 200)
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Booking failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
@@ -229,7 +231,7 @@ export function BookingModal({
               type="button"
               className="btn-book-slot"
               onClick={handleBooking}
-              disabled={isSubmitting || !student}
+              disabled={isSubmitting || !(student?.studentId ?? user?.id)}
             >
               {isSubmitting ? 'Confirming Reservation...' : 'Confirm Reservation'}
             </button>

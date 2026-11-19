@@ -28,7 +28,7 @@ export function DailySummary({ summary }: DailySummaryProps) {
       </div>
 
       <div className="summary-card highlight-approved">
-        <span className="summary-card-label">Approved</span>
+        <span className="summary-card-label">Accepted</span>
         <span className="summary-card-value">{summary.approved}</span>
       </div>
 

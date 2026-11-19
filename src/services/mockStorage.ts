@@ -270,7 +270,7 @@ class MockStorageService {
     const studentsForDate = this.inMemoryStudents.filter((s) => bookedStudentIds.includes(s.studentId))
 
     const pending = studentsForDate.filter((s) => s.approvalStatus === 'Pending').length
-    const approved = studentsForDate.filter((s) => s.approvalStatus === 'Approved').length
+    const approved = studentsForDate.filter((s) => s.approvalStatus === 'Approved' || s.approvalStatus === 'Accepted').length
     const rejected = studentsForDate.filter((s) => s.approvalStatus === 'Rejected').length
     const flagged = studentsForDate.filter((s) => s.reviewFlagStatus === 'Yellow Flagged' || s.reviewFlagStatus === 'Flagged for Review').length
 
@@ -438,7 +438,7 @@ class MockStorageService {
 
   public changeApprovalStatus(
     studentId: string,
-    newStatus: 'Approved' | 'Rejected' | 'Pending',
+    newStatus: 'Approved' | 'Accepted' | 'Rejected' | 'Pending',
     reason?: string,
     changedBy?: string
   ): boolean {

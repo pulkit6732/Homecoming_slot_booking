@@ -45,29 +45,18 @@ var CONFIG = {
   // Lock timeout in milliseconds (30 seconds)
   LOCK_TIMEOUT_MS: 30000,
   
-  // Spreadsheet Tab Names (Strict 3-tab architecture)
+  // Spreadsheet Tab Names (4-tab architecture)
   SHEET_NAMES: {
     STUDENT_DB: 'Student Database',
     APPROVED: 'Approved',
-    REJECTED: 'Rejected'
+    REJECTED: 'Rejected',
+    FLAGGED: 'Flagged'
   },
-  
-  // Default Admin Emails Allowlist (can be overridden by Script Properties)
-  DEFAULT_ADMIN_EMAILS: [
-    'admin@gitam.in',
-    'interviews@gitam.in',
-    'placement@gitam.in',
-    'placement.homecoming2026@gitam.in',
-    'gmercy@gitam.in',
-    'gmercy',
-    'dmoksha@gitam.in',
-    'dmoksha',
-    'surya@gitam.in',
-    'surya',
-    'sreyash@gitam.in',
-    'sreyash'
-  ],
-  
+
+  // Admin emails are stored exclusively in Script Properties (key: ADMIN_EMAILS).
+  // Never hardcode admin email addresses in source code.
+
+
   // Error codes conforming to specification
   ERROR_CODES: {
     AUTH_MISSING: 'AUTH_MISSING',

@@ -19,8 +19,8 @@ interface StudentProfileDetailsProps {
 
 export function StudentProfileDetails({ student, onReviewUpdate }: StudentProfileDetailsProps) {
   const { user } = useAuth()
-  const adminEmail = user?.email || 'admin@gitam.in'
-  const sessionToken = user?.accessToken || 'DEV_MOCK_ADMIN_TOKEN'
+  const adminEmail = user?.email || ''
+  const sessionToken = user?.accessToken || ''
 
   // Extract student Registration Number (the strict unique identifier for dossier lookup)
   const regNum = normalizeRegistrationNumber(
@@ -197,14 +197,14 @@ export function StudentProfileDetails({ student, onReviewUpdate }: StudentProfil
     setIsSubmittingDecision(true)
 
     if (activeReasonAction === 'APPROVE') {
-      const res = await changeApprovalStatus(sessionToken, student.studentId, 'Approved', reasonInput, adminEmail)
+      const res = await changeApprovalStatus(sessionToken, student.studentId, 'Accepted', reasonInput, adminEmail)
       if (res.success) {
-        setCurrentApproval('Approved')
+        setCurrentApproval('Accepted')
         setCurrentDecisionBy(adminEmail)
         setCurrentDecisionTimestamp(res.data.decisionTimestamp)
         setCurrentDecisionComment(reasonInput)
         if (res.data.reviewHistory) setReviewHistory(res.data.reviewHistory)
-        setDecisionFeedback('Student application officially approved.')
+        setDecisionFeedback('Candidate accepted for Homecoming executive board.')
         onReviewUpdate?.()
       } else {
         setDecisionFeedback(res.error.message)
@@ -639,7 +639,7 @@ export function StudentProfileDetails({ student, onReviewUpdate }: StudentProfil
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.2rem' }}>
               <span
                 className={`decision-indicator-dot ${
-                  currentApproval === 'Approved'
+                  currentApproval === 'Approved' || currentApproval === 'Accepted'
                     ? 'decision-indicator-green'
                     : currentApproval === 'Rejected'
                     ? 'decision-indicator-red'
@@ -689,12 +689,12 @@ export function StudentProfileDetails({ student, onReviewUpdate }: StudentProfil
           <div className="review-decision-controls">
             <button
               type="button"
-              className={`btn-decision btn-decision-approve ${currentApproval === 'Approved' ? 'active' : ''}`}
+              className={`btn-decision btn-decision-approve ${currentApproval === 'Approved' || currentApproval === 'Accepted' ? 'active' : ''}`}
               onClick={() => handleTriggerDecision('APPROVE')}
               disabled={isSubmittingDecision}
             >
               <span className="decision-indicator-dot decision-indicator-green" />
-              Approved
+              Accepted
             </button>
             <button
               type="button"

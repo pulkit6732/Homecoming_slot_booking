@@ -12,7 +12,7 @@ export function Badge({ type, status }: BadgeProps) {
     if (status === 'AVAILABLE') badgeClass += ' badge-available'
     else badgeClass += ' badge-booked'
   } else if (type === 'approval') {
-    if (status === 'Approved') badgeClass += ' badge-approved'
+    if (status === 'Approved' || status === 'Accepted') badgeClass += ' badge-approved'
     else if (status === 'Rejected') badgeClass += ' badge-rejected'
     else badgeClass += ' badge-pending'
   } else if (type === 'review') {
