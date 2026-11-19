@@ -66,9 +66,10 @@ async function postToBackend<T>(payload: Record<string, unknown>): Promise<ApiRe
     throw new Error('Live Apps Script URL is not configured');
   }
 
+  // text/plain avoids CORS preflight; Apps Script reads e.postData.contents regardless
   const res = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   });
 
@@ -90,8 +91,9 @@ export async function getAvailability(date: string): Promise<ApiResponse<Availab
   if (isLiveBackendConfigured()) {
     try {
       return await getFromBackend<AvailabilityData>({ action: 'getAvailability', date });
-    } catch {
-      // Fall through to mock storage only if development mock is enabled
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -230,8 +232,9 @@ export async function cancelBooking(
         token,
         targetStudentId
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -285,8 +288,9 @@ export async function getAdminSchedule(
         date,
         token
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -346,8 +350,9 @@ export async function getAdminSummary(
       const params: Record<string, string> = { action: 'getAdminSummary', token };
       if (date) params.date = date;
       return await getFromBackend<AdminSummaryData>(params);
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -397,8 +402,9 @@ export async function submitReviewAction(
         reason,
         comment
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -471,8 +477,9 @@ export async function getReviewDetails(
         token,
         studentId
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -506,7 +513,7 @@ export async function getReviewDetails(
 export async function changeApprovalStatus(
   token: string,
   studentId: string,
-  newApprovalStatus: 'Approved' | 'Rejected' | 'Pending',
+  newApprovalStatus: 'Approved' | 'Accepted' | 'Rejected' | 'Pending',
   reason?: string,
   adminEmail?: string
 ): Promise<ApiResponse<{
@@ -527,8 +534,9 @@ export async function changeApprovalStatus(
         newApprovalStatus,
         reason
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -592,8 +600,9 @@ export async function changeReviewFlag(
         newReviewFlagStatus,
         reason
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 
@@ -651,8 +660,9 @@ export async function saveAdminComment(
         studentId,
         commentText
       });
-    } catch {
-      // Fall through
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      return { success: false, error: { code: 'BACKEND_ERROR', message: msg }, timestamp: new Date().toISOString() };
     }
   }
 

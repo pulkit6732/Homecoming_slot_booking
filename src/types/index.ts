@@ -1,9 +1,12 @@
 // ─── Enums ───────────────────────────────────────────────
 
 export type BookingStatus = 'Not Booked' | 'Booked' | 'Cancelled'
-export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected'
+export type ApprovalStatus = 'Pending' | 'Approved' | 'Accepted' | 'Rejected'
 export type ReviewFlagStatus = 'Not Flagged' | 'Flagged for Review' | 'Yellow Flagged'
 export type SlotStatus = 'AVAILABLE' | 'BOOKED'
+
+// Unified interview decision status (used in UI and new backend writes)
+export type InterviewStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Flagged'
 
 // ─── Review & Private Comments ────────────────────────────
 

@@ -300,7 +300,7 @@ class MockStorageService {
 
   public changeApprovalStatus(
     studentId: string,
-    newStatus: 'Approved' | 'Rejected' | 'Pending',
+    newStatus: 'Approved' | 'Accepted' | 'Rejected' | 'Pending',
     reason?: string,
     changedBy?: string
   ): boolean {

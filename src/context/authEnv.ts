@@ -20,3 +20,10 @@ const mockAuthFlag = Boolean(
  * Completely disabled in production builds.
  */
 export const isDevMockAuthEnabled: boolean = isDevEnv && !isProdEnv && mockAuthFlag
+
+// Booking is enabled by default. Set VITE_BOOKING_ENABLED=false to close the portal.
+const bookingDisabledFlag = Boolean(
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BOOKING_ENABLED === 'false') ||
+  (globalProcess?.env?.VITE_BOOKING_ENABLED === 'false')
+)
+export const isBookingEnabled: boolean = !bookingDisabledFlag

@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import type { BookingConfirmation, SlotWithStatus } from '../../types'
 import { ELIGIBLE_DATES, getDisplayDate } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
-import { getAvailability, isLiveBackendConfigured } from '../../services/appsScriptClient'
-import { isDevMockAuthEnabled } from '../../context/authEnv'
+import { getAvailability, createBooking, isLiveBackendConfigured } from '../../services/appsScriptClient'
+import { isBookingEnabled, isDevMockAuthEnabled } from '../../context/authEnv'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveSync } from '../../hooks/useLiveSync'
 import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
@@ -68,13 +68,13 @@ export function StudentPage() {
   const handleBookSlotClick = (slot: SlotWithStatus) => {
     setNoticeMessage(null)
 
-    if (!currentStudent) {
-      setNoticeMessage('Booking is unavailable: Your account is not mapped to a registered student profile in the database.')
+    if (!isBookingEnabled) {
+      setNoticeMessage('Interview slot booking is currently closed. Please check back later.')
       return
     }
 
-    if (!isDevMockAuthEnabled) {
-      setNoticeMessage('Interview slot booking is currently disabled while the student registration database is being verified by the university placement office.')
+    if (!currentStudent && !user?.id) {
+      setNoticeMessage('Booking is unavailable: Your session could not be verified. Please log in again.')
       return
     }
 
@@ -93,28 +93,54 @@ export function StudentPage() {
     setActiveSlotToBook(slot)
   }
 
-  const handleConfirmBooking = (
+  const handleConfirmBooking = async (
     studentId: string,
     slot: SlotWithStatus,
-  ): { success: boolean; message: string; confirmation?: BookingConfirmation } => {
-    if (!isDevMockAuthEnabled) {
-      return {
-        success: false,
-        message: 'Interview slot booking is currently disabled while the student registration database is being finalized.'
+  ): Promise<{ success: boolean; message: string; confirmation?: BookingConfirmation }> => {
+    if (!isBookingEnabled) {
+      return { success: false, message: 'Interview slot booking is currently closed.' }
+    }
+
+    const token = user?.accessToken || ''
+    const bookingRequestId = `BRQ-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+
+    if (isLiveBackendConfigured()) {
+      const res = await createBooking(token, slot.date, slot.startTime, bookingRequestId)
+      if (res.success && res.data) {
+        void triggerSync()
+        return {
+          success: true,
+          message: 'Booking confirmed!',
+          confirmation: {
+            bookingId: res.data.bookingId,
+            bookingRequestId: res.data.bookingRequestId,
+            studentId: res.data.studentId,
+            studentName: res.data.fullName,
+            gitamEmail: res.data.email,
+            date: res.data.interviewDate,
+            displayDate: slot.date,
+            startTime: res.data.interviewStart,
+            endTime: res.data.interviewEnd,
+            displayStart: slot.displayStart,
+            displayEnd: slot.displayEnd,
+            status: 'Confirmed',
+          },
+        }
       }
+      const errMsg = !res.success
+        ? (res as { success: false; error: { message: string } }).error?.message || 'Booking failed'
+        : 'Booking failed'
+      return { success: false, message: errMsg }
     }
 
-    const result = mockStorage.bookSlot({
-      studentId,
-      date: slot.date,
-      startTime: slot.startTime,
-    })
-
-    if (result.success) {
-      void triggerSync()
+    // Dev mock fallback (only when explicitly enabled)
+    if (isDevMockAuthEnabled) {
+      const result = mockStorage.bookSlot({ studentId, date: slot.date, startTime: slot.startTime })
+      if (result.success) void triggerSync()
+      return result
     }
 
-    return result
+    return { success: false, message: 'Backend service is not configured. Please contact the placement office.' }
   }
 
   const availableCount = slots.filter((s) => s.status === 'AVAILABLE').length
@@ -129,23 +155,6 @@ export function StudentPage() {
         onRefresh={triggerSync}
         label="Student Directory Live Sync"
       />
-
-      {!isDevMockAuthEnabled && (
-        <div
-          style={{
-            backgroundColor: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            color: '#1e40af',
-            padding: '0.85rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1rem',
-            fontSize: '0.9rem',
-            lineHeight: 1.5,
-          }}
-        >
-          <strong>Staging Deployment Notice:</strong> Student slot booking is currently disabled while the master student registration database is being verified by the university placement office. You may view the schedule and test portal infrastructure.
-        </div>
-      )}
 
       {!currentStudent && (
         <div

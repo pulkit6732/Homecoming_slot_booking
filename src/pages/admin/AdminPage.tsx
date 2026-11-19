@@ -28,8 +28,8 @@ type ScheduleSubView = 'GRID' | 'TABLE'
 
 export function AdminPage() {
   const { user } = useAuth()
-  const sessionToken = user?.accessToken || 'DEV_MOCK_ADMIN_TOKEN'
-  const adminEmail = user?.email || 'admin@gitam.in'
+  const sessionToken = user?.accessToken || ''
+  const adminEmail = user?.email || ''
 
   const [activeTab, setActiveTab] = useState<AdminTab>('SCHEDULE')
   const [scheduleSubView, setScheduleSubView] = useState<ScheduleSubView>('GRID')
@@ -115,6 +115,7 @@ export function AdminPage() {
             status: s.status,
           }))
         )
+        // In dev mode, also refresh student list from mock storage
         setAllStudents(mockStorage.getAllStudents())
         return
       }
@@ -164,10 +165,10 @@ export function AdminPage() {
     setReviewModalAction(actionType)
   }
 
-  // Confirm Approve
+  // Confirm Accept (formerly Approve)
   const handleConfirmApprove = async (studentId: string, comment: string) => {
     if (isLiveBackendConfigured()) {
-      await changeApprovalStatus(sessionToken, studentId, 'Approved', comment, adminEmail)
+      await changeApprovalStatus(sessionToken, studentId, 'Accepted', comment, adminEmail)
     } else {
       mockStorage.approveStudent(studentId, comment, adminEmail)
     }
@@ -214,14 +215,16 @@ export function AdminPage() {
     void triggerSync()
   }
 
-  // Filtered students for the table
+  // Filtered students for the table (derived from live allStudents, not mock storage)
   const bookedStudentsOnDate = allStudents.filter(
     (s) => s.bookingStatus === 'Booked' && s.bookedDate === selectedDate,
   )
   const filteredBookedStudents = mockStorage.filterStudents(bookedStudentsOnDate, filters)
 
-  const flaggedStudents = mockStorage.getFlaggedStudents()
-  const unbookedStudents = mockStorage.getUnbookedStudents()
+  const flaggedStudents = allStudents.filter(
+    (s) => s.reviewFlagStatus === 'Flagged for Review' || s.reviewFlagStatus === 'Yellow Flagged',
+  )
+  const unbookedStudents = allStudents.filter((s) => s.bookingStatus !== 'Booked')
 
   return (
     <div className="admin-portal-view">

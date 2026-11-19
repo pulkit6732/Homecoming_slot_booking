@@ -19,8 +19,8 @@ interface StudentProfileDetailsProps {
 
 export function StudentProfileDetails({ student, onReviewUpdate }: StudentProfileDetailsProps) {
   const { user } = useAuth()
-  const adminEmail = user?.email || 'admin@gitam.in'
-  const sessionToken = user?.accessToken || 'DEV_MOCK_ADMIN_TOKEN'
+  const adminEmail = user?.email || ''
+  const sessionToken = user?.accessToken || ''
 
   // Extract student Registration Number (the strict unique identifier for dossier lookup)
   const regNum = normalizeRegistrationNumber(
