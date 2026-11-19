@@ -57,7 +57,15 @@ var CONFIG = {
     'admin@gitam.in',
     'interviews@gitam.in',
     'placement@gitam.in',
-    'placement.homecoming2026@gitam.in'
+    'placement.homecoming2026@gitam.in',
+    'gmercy@gitam.in',
+    'gmercy',
+    'dmoksha@gitam.in',
+    'dmoksha',
+    'surya@gitam.in',
+    'surya',
+    'sreyash@gitam.in',
+    'sreyash'
   ],
   
   // Error codes conforming to specification

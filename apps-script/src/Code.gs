@@ -41,6 +41,11 @@ function doGet(e) {
         var studentEmail = params.email || '';
         return createJsonResponse(studentLoginByEmail(studentEmail));
 
+      case 'adminLogin':
+        var adminIdent = params.identifier || params.username || params.email || '';
+        var adminPass = params.password || '';
+        return createJsonResponse(adminLogin(adminIdent, adminPass));
+
       case 'checkStudentEligibility':
         var eligEmail = params.email || '';
         return createJsonResponse(checkStudentEligibility(eligEmail));
@@ -136,6 +141,11 @@ function doPost(e) {
 
       case 'editComment':
         return createJsonResponse(editComment(body));
+
+      case 'adminLogin':
+        var pIdent = body.identifier || body.username || body.email || '';
+        var pPass = body.password || '';
+        return createJsonResponse(adminLogin(pIdent, pPass));
 
       default:
         return createJsonResponse(errorPayload(

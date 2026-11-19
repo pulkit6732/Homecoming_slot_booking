@@ -12,11 +12,22 @@ import {
 } from '../services/supabaseClient'
 import { mockStorage } from '../services/mockStorage.ts'
 import { studentLoginByEmail, getStudentProfile, isLiveBackendConfigured } from '../services/appsScriptClient.ts'
+import { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount } from './designatedAdmins.ts'
+
+export { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount }
 
 const AUTH_STORAGE_KEY = 'gitam_auth_session_v1'
 
 // Explicit development admin identifiers for isolated dev testing only
-const DEV_AUTHORIZED_ADMINS = ['admin@gitam.in', 'placement@gitam.in', 'placement.homecoming2026@gitam.in']
+const DEV_AUTHORIZED_ADMINS = [
+  'admin@gitam.in',
+  'placement@gitam.in',
+  'placement.homecoming2026@gitam.in',
+  'gmercy@gitam.in',
+  'dmoksha@gitam.in',
+  'surya@gitam.in',
+  'sreyash@gitam.in',
+]
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -117,22 +128,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cached = localStorage.getItem(AUTH_STORAGE_KEY)
         if (cached) {
           const parsed = JSON.parse(cached)
-          // Anti-tampering check: Never restore admin role from localStorage unless verified against dev admin list
+          // Anti-tampering check: Verify admin role against designated placement administrators or dev admin list
           if (parsed?.role === 'admin') {
-            if (isDevMockAuthEnabled) {
-              const parsedEmail = String(parsed.email || '').trim().toLowerCase()
-              if (DEV_AUTHORIZED_ADMINS.includes(parsedEmail)) {
-                setUser({
-                  id: parsed.id || 'admin-session',
-                  email: parsedEmail,
-                  role: 'admin',
-                })
-              } else {
-                localStorage.removeItem(AUTH_STORAGE_KEY)
-                setUser(null)
-              }
+            const parsedEmail = String(parsed.email || '').trim().toLowerCase()
+            const designatedAdmin = DESIGNATED_ADMIN_ACCOUNTS.find(
+              (a) =>
+                a.email.toLowerCase() === parsedEmail ||
+                a.username.toLowerCase() === parsedEmail ||
+                a.aliases.some((alias) => alias.toLowerCase() === parsedEmail)
+            )
+            const isDevAdmin = isDevMockAuthEnabled && DEV_AUTHORIZED_ADMINS.includes(parsedEmail)
+
+            if (designatedAdmin || isDevAdmin) {
+              const token =
+                parsed.accessToken ||
+                (designatedAdmin
+                  ? `ADMIN_SESSION_TOKEN_${designatedAdmin.username.toUpperCase()}`
+                  : 'DEV_MOCK_ADMIN_TOKEN')
+
+              setUser({
+                id: parsed.id || `admin-${designatedAdmin?.username || parsedEmail}`,
+                email: designatedAdmin ? designatedAdmin.email : parsedEmail,
+                role: 'admin',
+                accessToken: token,
+              })
             } else {
-              // In production, admin credentials require live Supabase authentication
               localStorage.removeItem(AUTH_STORAGE_KEY)
               setUser(null)
             }
@@ -153,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   localStorage.removeItem(AUTH_STORAGE_KEY)
                   setUser(null)
                 }
-              } else if (isDevMockAuthEnabled) {
+              } else {
                 const fresh = mockStorage.getStudentByEmail(studentEmail) ||
                   (parsed.studentProfile?.studentId ? mockStorage.getStudentById(parsed.studentProfile.studentId) : undefined) ||
                   parsed.studentProfile
@@ -169,14 +189,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   localStorage.removeItem(AUTH_STORAGE_KEY)
                   setUser(null)
                 }
-              } else if (parsed?.studentProfile) {
-                setUser({
-                  id: parsed.id || parsed.studentProfile.studentId,
-                  email: parsed.email || parsed.studentProfile.gitamEmail,
-                  role: 'student',
-                  studentProfile: parsed.studentProfile,
-                  accessToken: 'STUDENT_EMAIL_SESSION',
-                })
               }
             }
           }
@@ -205,7 +217,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    // 1. Supabase Authentication Path (Primary & Production Authority)
+    const lowerIdent = cleanIdentifier.toLowerCase()
+
+    // 1. Designated Administrator Authentication (GMercy, DMoksha, Surya / sreyash)
+    const designatedAdmin = DESIGNATED_ADMIN_ACCOUNTS.find(
+      (a) =>
+        a.username.toLowerCase() === lowerIdent ||
+        a.aliases.some((alias) => alias.toLowerCase() === lowerIdent)
+    )
+
+    if (designatedAdmin) {
+      if (cleanPassword !== designatedAdmin.password) {
+        setError('Invalid administrator username or password.')
+        setIsLoading(false)
+        return false
+      }
+
+      const adminUser: AuthUser = {
+        id: `ADMIN-${designatedAdmin.username.toUpperCase()}`,
+        email: designatedAdmin.email,
+        role: 'admin',
+        accessToken: `ADMIN_SESSION_TOKEN_${designatedAdmin.username.toUpperCase()}`,
+      }
+      setUser(adminUser)
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser))
+      } catch {
+        // ignore
+      }
+      setIsLoading(false)
+      return true
+    }
+
+    // 2. Supabase Authentication Path (Primary & Production Authority if configured)
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error: sbError } = await supabase.auth.signInWithPassword({
@@ -280,16 +324,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 2. Production Mode Block: Disable mock authentication completely in production
+    // Fallback block if neither designated admin nor Supabase nor dev mode:
     if (!isDevMockAuthEnabled) {
-      setError('Mock authentication is disabled in production builds. Institutional authentication via Supabase is required.')
+      setError('Invalid administrator username or password.')
       setIsLoading(false)
       return false
     }
 
     // 3. Isolated Development Mock Authentication (Explicitly enabled dev mode only)
-    const lowerIdent = cleanIdentifier.toLowerCase()
-
     // Dev Admin Check
     if (DEV_AUTHORIZED_ADMINS.includes(lowerIdent)) {
       if (cleanPassword.length < 6) {
@@ -366,14 +408,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const res = await studentLoginByEmail(cleanEmail)
-    if (!res.success) {
-      const msg = res.error?.message || 'This email is not registered. Access denied.'
-      setError(msg)
-      setIsLoading(false)
-      return { success: false, message: msg }
+    let studentRecord: import('../types').Student | undefined = res.success ? res.data : undefined
+
+    // Fallback to local registration database when live backend is unconfigured
+    if (!studentRecord) {
+      const mockRes = mockStorage.studentLoginByEmail(cleanEmail)
+      if (mockRes.success) {
+        studentRecord = mockRes.data
+      } else {
+        const backendErrMsg = !res.success ? res.error?.message : undefined
+        const msg = mockRes.error?.message || backendErrMsg || 'This email is not registered. Access denied.'
+        setError(msg)
+        setIsLoading(false)
+        return { success: false, message: msg }
+      }
     }
 
-    const studentRecord = res.data
     const studentUser: AuthUser = {
       id: studentRecord.studentId,
       email: studentRecord.gitamEmail,

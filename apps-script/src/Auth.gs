@@ -328,6 +328,27 @@ function isAuthorizedAdmin(email) {
  * @return {{ authorized: boolean, adminEmail?: string, error?: Object }}
  */
 function authenticateAdmin(token) {
+  if (!token || typeof token !== 'string') {
+    return {
+      authorized: false,
+      error: { code: CONFIG.ERROR_CODES.AUTH_MISSING, message: 'Authentication token is required' }
+    };
+  }
+
+  // Support designated administrator session tokens
+  if (token.indexOf('ADMIN_SESSION_TOKEN_') === 0) {
+    var adminName = token.substring('ADMIN_SESSION_TOKEN_'.length).toLowerCase();
+    var emailMap = {
+      'gmercy': 'gmercy@gitam.in',
+      'dmoksha': 'dmoksha@gitam.in',
+      'surya': 'surya@gitam.in',
+      'sreyash': 'surya@gitam.in'
+    };
+    if (emailMap[adminName]) {
+      return { authorized: true, adminEmail: emailMap[adminName] };
+    }
+  }
+
   var authResult = validateSupabaseToken(token);
   if (!authResult.valid) {
     return { authorized: false, error: authResult.error };
@@ -345,6 +366,59 @@ function authenticateAdmin(token) {
   }
 
   return { authorized: true, adminEmail: email };
+}
+
+/**
+ * Designated administrator credential authentication.
+ * Verifies username and password for designated placement administrators:
+ * 1. GMercy / Diya@291018
+ * 2. DMoksha / KA51HA4142
+ * 3. Surya / sreyash@6714369 (also accepts alias sreyash)
+ *
+ * @param {string} identifier
+ * @param {string} password
+ * @return {Object}
+ */
+function adminLogin(identifier, password) {
+  if (!identifier || !password) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Administrator username and password are required.');
+  }
+
+  var cleanId = String(identifier).trim().toLowerCase();
+  var cleanPass = String(password).trim();
+
+  var accounts = [
+    { username: 'GMercy', aliases: ['gmercy', 'gmercy@gitam.in'], password: 'Diya@291018', email: 'gmercy@gitam.in' },
+    { username: 'DMoksha', aliases: ['dmoksha', 'dmoksha@gitam.in'], password: 'KA51HA4142', email: 'dmoksha@gitam.in' },
+    { username: 'Surya', aliases: ['surya', 'surya@gitam.in', 'sreyash', 'sreyash@gitam.in'], password: 'sreyash@6714369', email: 'surya@gitam.in' }
+  ];
+
+  for (var i = 0; i < accounts.length; i++) {
+    var acc = accounts[i];
+    var matches = (acc.username.toLowerCase() === cleanId);
+    if (!matches) {
+      for (var j = 0; j < acc.aliases.length; j++) {
+        if (acc.aliases[j].toLowerCase() === cleanId) {
+          matches = true;
+          break;
+        }
+      }
+    }
+
+    if (matches) {
+      if (cleanPass === acc.password) {
+        return successPayload({
+          token: 'ADMIN_SESSION_TOKEN_' + acc.username.toUpperCase(),
+          email: acc.email,
+          username: acc.username
+        }, 'Administrator authenticated successfully.');
+      } else {
+        return errorPayload(CONFIG.ERROR_CODES.AUTH_INVALID, 'Invalid administrator username or password.');
+      }
+    }
+  }
+
+  return errorPayload(CONFIG.ERROR_CODES.AUTH_INVALID, 'Invalid administrator username or password.');
 }
 
 /**

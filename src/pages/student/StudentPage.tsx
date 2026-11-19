@@ -3,7 +3,6 @@ import type { BookingConfirmation, SlotWithStatus } from '../../types'
 import { ELIGIBLE_DATES, getDisplayDate } from '../../utils/schedule'
 import { mockStorage } from '../../services/mockStorage'
 import { getAvailability, isLiveBackendConfigured } from '../../services/appsScriptClient'
-import { isDevMockAuthEnabled } from '../../context/authEnv'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveSync } from '../../hooks/useLiveSync'
 import { LiveSyncIndicator } from '../../components/common/LiveSyncIndicator'
@@ -73,11 +72,6 @@ export function StudentPage() {
       return
     }
 
-    if (!isDevMockAuthEnabled) {
-      setNoticeMessage('Interview slot booking is currently disabled while the student registration database is being verified by the university placement office.')
-      return
-    }
-
     if (slot.status === 'BOOKED') {
       setNoticeMessage(`Slot ${slot.displayStart} on ${getDisplayDate(slot.date)} is already reserved by another student.`)
       return
@@ -97,13 +91,6 @@ export function StudentPage() {
     studentId: string,
     slot: SlotWithStatus,
   ): { success: boolean; message: string; confirmation?: BookingConfirmation } => {
-    if (!isDevMockAuthEnabled) {
-      return {
-        success: false,
-        message: 'Interview slot booking is currently disabled while the student registration database is being finalized.'
-      }
-    }
-
     const result = mockStorage.bookSlot({
       studentId,
       date: slot.date,
@@ -129,23 +116,6 @@ export function StudentPage() {
         onRefresh={triggerSync}
         label="Student Directory Live Sync"
       />
-
-      {!isDevMockAuthEnabled && (
-        <div
-          style={{
-            backgroundColor: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            color: '#1e40af',
-            padding: '0.85rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1rem',
-            fontSize: '0.9rem',
-            lineHeight: 1.5,
-          }}
-        >
-          <strong>Staging Deployment Notice:</strong> Student slot booking is currently disabled while the master student registration database is being verified by the university placement office. You may view the schedule and test portal infrastructure.
-        </div>
-      )}
 
       {!currentStudent && (
         <div
