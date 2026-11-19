@@ -902,7 +902,12 @@ function getAllStudentsForAdmin() {
         resumeLink: f(['ResumeLink', 'Resume Link', 'Resume']),
         domainPreference1: f(['DomainPreference1', 'Preference 1', 'Primary Preference']),
         domainPreference2: f(['DomainPreference2', 'Preference 2', 'Secondary Preference']),
-        domainPreference3: f(['DomainPreference3', 'Preference 3', 'Tertiary Preference'])
+        domainPreference3: f(['DomainPreference3', 'Preference 3', 'Tertiary Preference']),
+        committeePreferences: f(['CommitteePreferences', 'Committee Preferences', 'Committee']),
+        rolesAppliedFor: f(['RolesAppliedFor', 'Roles Applied For', 'Role', 'Roles']),
+        writtenApplication: f(['WrittenApplication', 'Written Application', 'Application Essay', 'Statement']),
+        selfAssessment: f(['SelfAssessment', 'Self Assessment', 'Self Evaluation']),
+        availabilityCommute: f(['AvailabilityCommute', 'Availability Commute', 'Availability', 'Commute'])
       };
     })
     .filter(Boolean);

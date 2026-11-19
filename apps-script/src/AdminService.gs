@@ -94,7 +94,7 @@ function getAdminSummary(token, dateStr) {
     else unbookedCount++;
 
     var appStatus = String(s.ApprovalStatus || 'Pending');
-    if (appStatus === 'Approved') approvedCount++;
+    if (appStatus === 'Approved' || appStatus === 'Accepted') approvedCount++;
     else if (appStatus === 'Rejected') rejectedCount++;
     else pendingReviewCount++;
 
