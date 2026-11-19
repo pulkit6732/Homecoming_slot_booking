@@ -5,6 +5,7 @@ import { mockStorage } from '../../services/mockStorage'
 import {
   getAdminSchedule,
   getAdminSummary,
+  getAllStudents,
   changeApprovalStatus,
   changeReviewFlag,
   cancelBooking,
@@ -28,8 +29,8 @@ type ScheduleSubView = 'GRID' | 'TABLE'
 
 export function AdminPage() {
   const { user } = useAuth()
-  const sessionToken = user?.accessToken || 'DEV_MOCK_ADMIN_TOKEN'
-  const adminEmail = user?.email || 'admin@gitam.in'
+  const sessionToken = user?.accessToken || ''
+  const adminEmail = user?.email || ''
 
   const [activeTab, setActiveTab] = useState<AdminTab>('SCHEDULE')
   const [scheduleSubView, setScheduleSubView] = useState<ScheduleSubView>('GRID')
@@ -89,8 +90,11 @@ export function AdminPage() {
   // Refresh callback that performs an actual backend or storage fetch
   const refreshAdminData = useCallback(async () => {
     if (isLiveBackendConfigured()) {
-      const scheduleRes = await getAdminSchedule(sessionToken, selectedDate)
-      const summaryRes = await getAdminSummary(sessionToken, selectedDate)
+      const [scheduleRes, summaryRes, studentsRes] = await Promise.all([
+        getAdminSchedule(sessionToken, selectedDate),
+        getAdminSummary(sessionToken, selectedDate),
+        getAllStudents(sessionToken),
+      ])
       if (scheduleRes.success && summaryRes.success) {
         setDaySummary({
           date: selectedDate,
@@ -115,7 +119,9 @@ export function AdminPage() {
             status: s.status,
           }))
         )
-        setAllStudents(mockStorage.getAllStudents())
+        if (studentsRes.success && studentsRes.data) {
+          setAllStudents(studentsRes.data.students as Student[])
+        }
         return
       }
       const err = !scheduleRes.success
@@ -164,10 +170,10 @@ export function AdminPage() {
     setReviewModalAction(actionType)
   }
 
-  // Confirm Approve
+  // Confirm Accept (formerly Approve)
   const handleConfirmApprove = async (studentId: string, comment: string) => {
     if (isLiveBackendConfigured()) {
-      await changeApprovalStatus(sessionToken, studentId, 'Approved', comment, adminEmail)
+      await changeApprovalStatus(sessionToken, studentId, 'Accepted', comment, adminEmail)
     } else {
       mockStorage.approveStudent(studentId, comment, adminEmail)
     }
@@ -214,14 +220,16 @@ export function AdminPage() {
     void triggerSync()
   }
 
-  // Filtered students for the table
+  // Filtered students for the table (derived from live allStudents, not mock storage)
   const bookedStudentsOnDate = allStudents.filter(
     (s) => s.bookingStatus === 'Booked' && s.bookedDate === selectedDate,
   )
   const filteredBookedStudents = mockStorage.filterStudents(bookedStudentsOnDate, filters)
 
-  const flaggedStudents = mockStorage.getFlaggedStudents()
-  const unbookedStudents = mockStorage.getUnbookedStudents()
+  const flaggedStudents = allStudents.filter(
+    (s) => s.reviewFlagStatus === 'Flagged for Review' || s.reviewFlagStatus === 'Yellow Flagged',
+  )
+  const unbookedStudents = allStudents.filter((s) => s.bookingStatus !== 'Booked')
 
   return (
     <div className="admin-portal-view">

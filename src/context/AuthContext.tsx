@@ -11,23 +11,74 @@ import {
   isSupabaseConfigured,
 } from '../services/supabaseClient'
 import { mockStorage } from '../services/mockStorage.ts'
-import { studentLoginByEmail, getStudentProfile, isLiveBackendConfigured } from '../services/appsScriptClient.ts'
+import { studentLoginByEmail, isLiveBackendConfigured } from '../services/appsScriptClient.ts'
 import { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount } from './designatedAdmins.ts'
 
 export { DESIGNATED_ADMIN_ACCOUNTS, type DesignatedAdminAccount }
 
 const AUTH_STORAGE_KEY = 'gitam_auth_session_v1'
 
-// Explicit development admin identifiers for isolated dev testing only
-const DEV_AUTHORIZED_ADMINS = [
-  'admin@gitam.in',
-  'placement@gitam.in',
-  'placement.homecoming2026@gitam.in',
-  'gmercy@gitam.in',
-  'dmoksha@gitam.in',
-  'surya@gitam.in',
-  'sreyash@gitam.in',
-]
+// Dev-only admin list; real admin emails live in Supabase app_metadata.role = 'admin'
+const DEV_AUTHORIZED_ADMINS: string[] = []
+
+// Creates a minimal Student profile from Supabase auth data for non-admin users.
+// The backend validates eligibility via JWT token; local profile is for display only.
+function buildMinimalStudentProfile(uid: string, email: string): import('./authTypes').AuthUser['studentProfile'] {
+  const displayName = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  return {
+    studentId: uid,
+    gitamEmail: email,
+    fullName: displayName,
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: '',
+    phoneNumber: '',
+    personalEmail: '',
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    academicYear: '',
+    program: '',
+    branch: '',
+    section: '',
+    rollNumber: '',
+    cgpa: 0,
+    backlogs: 0,
+    highestQualification: '',
+    universityCollege: '',
+    yearOfPassing: '',
+    achievements: '',
+    certifications: '',
+    technicalSkills: '',
+    softSkills: '',
+    projects: '',
+    internships: '',
+    workExperience: '',
+    domainPreference1: '',
+    domainPreference2: '',
+    domainPreference3: '',
+    formSubmissionTimestamp: '',
+    resumeLink: '',
+    documentLinks: '',
+    bookingStatus: 'Not Booked' as const,
+    bookingId: '',
+    bookingRequestId: '',
+    bookedDate: '',
+    bookedSlotStart: '',
+    bookedSlotEnd: '',
+    bookedTimestamp: '',
+    approvalStatus: 'Pending' as const,
+    decisionBy: '',
+    decisionTimestamp: '',
+    decisionComment: '',
+    reviewFlagStatus: 'Not Flagged' as const,
+    flaggedBy: '',
+    flaggedAt: '',
+    flagReason: '',
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -85,35 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 accessToken: token,
               })
             } else {
-              // Non-admin session: Verify student registration with backend using verified JWT token
-              let matchedStudent = resolveStudentFromIdentifier(userEmail)
-              if (!matchedStudent && token) {
-                try {
-                  const profRes = await getStudentProfile(token)
-                  if (profRes.success && profRes.data) {
-                    matchedStudent = profRes.data
-                  }
-                } catch {
-                  // Fall through
-                }
-              }
-
-              if (matchedStudent) {
-                setUser({
-                  id: data.session.user.id,
-                  email: matchedStudent.gitamEmail,
-                  role: 'student',
-                  studentProfile: matchedStudent,
-                  accessToken: token,
-                })
-              } else {
-                setUser({
-                  id: data.session.user.id,
-                  email: userEmail,
-                  role: 'unregistered',
-                  accessToken: token,
-                })
-              }
+              // All verified non-admin users are students; backend validates eligibility via JWT
+              setUser({
+                id: data.session.user.id,
+                email: userEmail,
+                role: 'student',
+                studentProfile: buildMinimalStudentProfile(data.session.user.id, userEmail),
+                accessToken: token,
+              })
             }
             setIsLoading(false)
             return
@@ -292,29 +322,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return true
           }
 
-          const matchedStudent = resolveStudentFromIdentifier(userEmail)
-          if (matchedStudent) {
-            const studentUser: AuthUser = {
-              id: data.user.id,
-              email: matchedStudent.gitamEmail,
-              role: 'student',
-              studentProfile: matchedStudent,
-              accessToken: token,
-            }
-            setUser(studentUser)
-            setIsLoading(false)
-            return true
-          }
-
-          const unregUser: AuthUser = {
+          // All verified non-admin users are students; backend validates eligibility via JWT
+          const studentUser: AuthUser = {
             id: data.user.id,
             email: userEmail,
-            role: 'unregistered',
+            role: 'student',
+            studentProfile: buildMinimalStudentProfile(data.user.id, userEmail),
             accessToken: token,
           }
-          setUser(unregUser)
+          setUser(studentUser)
           setIsLoading(false)
-          return false
+          return true
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Authentication failed.'
@@ -344,7 +362,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: `DEV-ADMIN-${Date.now()}`,
         email: lowerIdent,
         role: 'admin',
-        accessToken: 'DEV_MOCK_ADMIN_TOKEN',
       }
       setUser(adminUser)
       try {
@@ -375,7 +392,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: matchedStudent.gitamEmail,
       role: 'student',
       studentProfile: matchedStudent,
-      accessToken: 'DEV_MOCK_STUDENT_TOKEN',
     }
     setUser(studentUser)
     try {

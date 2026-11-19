@@ -227,7 +227,8 @@
   border: 1px solid #d2d8d5;
 }
 
-.badge-approved {
+.badge-approved,
+.badge-accepted {
   background: var(--status-approved-bg);
   color: var(--status-approved-text);
   border: 1px solid #b9e6cf;
@@ -943,4 +944,103 @@
   background: #f0f4f2;
   font-weight: 700;
   color: var(--portal-text);
+}
+
+/* ─── Mobile Responsive Overrides (≤ 480px) ─────────────── */
+@media (max-width: 480px) {
+  /* Slot grid: smaller minimum so 2 columns fit on phones */
+  .slot-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+  }
+
+  /* Date tabs: scroll snap for one-at-a-time swipe */
+  .date-selector-tabs {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .date-tab-button {
+    scroll-snap-align: start;
+    min-width: 110px;
+    padding: 0.65rem 0.75rem;
+  }
+
+  /* Modal footer: stack buttons on narrow screens */
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .modal-footer button,
+  .modal-footer .btn-secondary,
+  .modal-footer .btn-book-slot,
+  .modal-footer .btn-danger,
+  .modal-footer .btn-warning {
+    flex: 1 1 auto;
+    min-width: 110px;
+    white-space: nowrap;
+  }
+
+  /* Modal: reduce padding and font sizes */
+  .modal-content {
+    padding: 1.25rem 1rem;
+  }
+
+  /* Admin nav pills: wrap on small screens */
+  .admin-subnav-pills {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .admin-subnav-btn {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  /* Filter bar: stack inputs fully */
+  .filter-bar-container {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .filter-input-group {
+    flex: 1 1 150px;
+  }
+
+  /* Inputs: prevent placeholder overflow on narrow screens */
+  .filter-input-group input,
+  .filter-input-group select {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+
+  /* Decision buttons: compact on mobile */
+  .btn-decision {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  /* Summary cards: 2 columns on phone */
+  .summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Profile grid: single column on mobile */
+  .profile-section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Page heading h1: tighter on small screens */
+  .page-heading h1 {
+    font-size: clamp(1.6rem, 7vw, 2.4rem);
+  }
+
+  /* Pagination: stack on phone */
+  .pagination-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

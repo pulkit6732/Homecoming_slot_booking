@@ -120,6 +120,37 @@ function getStudentRecordByEmail(email) {
   }
 
   if (matches.length === 0) {
+    // Fallback: check original form responses sheet (applicant allowlist).
+    // Only performed when an external FORM_RESPONSES_SPREADSHEET_ID is configured —
+    // avoids re-searching the same Student Database sheet.
+    var externalId = getScriptProperty('FORM_RESPONSES_SPREADSHEET_ID', '');
+    if (externalId) {
+      var formSheet = getOriginalFormResponsesSheet();
+      var formRows = readSheetRowsWithHeader(formSheet);
+      var formMatches = [];
+
+      for (var fi = 0; fi < formRows.length; fi++) {
+        var fd = formRows[fi].data;
+        var fEmail = String(fd.Email || fd['GITAM Email'] || fd['GITAM Email Address'] || fd['Student Email'] || fd['Email Address'] || fd['Candidate Email'] || '').trim().toLowerCase().replace(/\s+/g, '');
+        if (fEmail === target) {
+          formMatches.push(fd);
+        }
+      }
+
+      if (formMatches.length > 1) {
+        return {
+          isAmbiguous: true,
+          duplicateCount: formMatches.length,
+          error: 'AMBIGUOUS_STUDENT_RECORD: Multiple form responses found for ' + target + '. Administrative resolution required.'
+        };
+      }
+
+      if (formMatches.length === 1) {
+        // Auto-register the applicant in Student Database on first sign-in.
+        // This creates a minimal row so bookings can be persisted against their record.
+        return autoRegisterStudentFromFormResponse(formMatches[0], target);
+      }
+    }
     return null;
   }
   
@@ -340,13 +371,21 @@ function updateStudentReview(studentId, reviewData) {
   SpreadsheetApp.flush();
   invalidateSheetCache(CONFIG.SHEET_NAMES.STUDENT_DB);
 
-  // Decision sheet synchronization for Approved / Rejected
-  if (reviewData.ApprovalStatus === 'Approved') {
+  // Decision sheet synchronization for Approved / Accepted / Rejected
+  if (reviewData.ApprovalStatus === 'Approved' || reviewData.ApprovalStatus === 'Accepted') {
     syncDecisionSheet(CONFIG.SHEET_NAMES.APPROVED, studentId, studentRef.data, reviewData);
     removeDecisionSheetRecord(CONFIG.SHEET_NAMES.REJECTED, studentId);
   } else if (reviewData.ApprovalStatus === 'Rejected') {
     syncDecisionSheet(CONFIG.SHEET_NAMES.REJECTED, studentId, studentRef.data, reviewData);
     removeDecisionSheetRecord(CONFIG.SHEET_NAMES.APPROVED, studentId);
+  }
+
+  // Flagged sheet synchronization (independent from ApprovalStatus)
+  var flagStatus = reviewData.ReviewFlagStatus || '';
+  if (flagStatus === 'Flagged for Review' || flagStatus === 'Yellow Flagged') {
+    syncDecisionSheet(CONFIG.SHEET_NAMES.FLAGGED, studentId, studentRef.data, reviewData);
+  } else if (flagStatus === 'Not Flagged') {
+    removeDecisionSheetRecord(CONFIG.SHEET_NAMES.FLAGGED, studentId);
   }
 
   return true;
@@ -700,4 +739,176 @@ function getAdminReviewDataByRegistrationNumber(registrationNumber) {
     adminComments: Array.isArray(comments) ? comments : [],
     reviewHistory: Array.isArray(reviewHistory) ? reviewHistory : []
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-REGISTRATION FROM FORM RESPONSES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inserts a minimal Student Database row for a verified applicant whose email was found
+ * in the form responses sheet but not yet in the Student Database.
+ * Called once per applicant on their first authenticated sign-in.
+ *
+ * @param {Object} formRowData Raw row object from the form responses sheet.
+ * @param {string} verifiedEmail Lowercase normalised email from Supabase JWT.
+ * @return {Object} The newly created Student Database record.
+ */
+function autoRegisterStudentFromFormResponse(formRowData, verifiedEmail) {
+  function getField(candidates) {
+    var keys = Object.keys(formRowData);
+    for (var c = 0; c < candidates.length; c++) {
+      var target = candidates[c].toLowerCase();
+      for (var k = 0; k < keys.length; k++) {
+        if (keys[k].trim().toLowerCase() === target) {
+          var val = formRowData[keys[k]];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            return String(val).trim();
+          }
+        }
+      }
+    }
+    return '';
+  }
+
+  var regNum = extractRegistrationNumberFromRow(formRowData);
+  var studentId = regNum || verifiedEmail;
+  var fullName = getField(['full name', 'fullname', 'name', 'student name', 'candidate name']);
+
+  var sheet = getSheetByName(CONFIG.SHEET_NAMES.STUDENT_DB);
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  var rowValues = [];
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c]).trim();
+    switch (h) {
+      case 'StudentID':
+      case 'Student ID':
+        rowValues.push(studentId); break;
+      case 'Email':
+      case 'GITAM Email':
+      case 'GITAM Email Address':
+      case 'Student Email':
+      case 'Email Address':
+      case 'Candidate Email':
+        rowValues.push(verifiedEmail); break;
+      case 'FullName':
+      case 'Full Name':
+      case 'Name':
+      case 'Student Name':
+      case 'Candidate Name':
+        rowValues.push(fullName); break;
+      case 'Registration Number':
+      case 'Registration no.':
+      case 'Registration No':
+      case 'Roll Number':
+      case 'Roll No':
+        rowValues.push(regNum); break;
+      case 'BookingStatus':
+        rowValues.push('Not Booked'); break;
+      case 'ApprovalStatus':
+        rowValues.push('Pending'); break;
+      case 'ReviewFlagStatus':
+        rowValues.push('Not Flagged'); break;
+      default:
+        rowValues.push('');
+    }
+  }
+
+  sheet.appendRow(rowValues);
+  SpreadsheetApp.flush();
+  invalidateSheetCache(CONFIG.SHEET_NAMES.STUDENT_DB);
+
+  // Return the newly written record
+  return {
+    StudentID: studentId,
+    Email: verifiedEmail,
+    FullName: fullName,
+    BookingStatus: 'Not Booked',
+    ApprovalStatus: 'Pending',
+    ReviewFlagStatus: 'Not Flagged'
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN STUDENT LIST
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns all Student Database rows mapped to a consistent admin-facing schema.
+ * Used to populate the admin candidate table.
+ *
+ * @return {Array<Object>}
+ */
+function getAllStudentsForAdmin() {
+  var rows = getAllStudentRecords();
+
+  return rows
+    .map(function(d) {
+      function f(candidates) {
+        for (var i = 0; i < candidates.length; i++) {
+          var v = d[candidates[i]];
+          if (v !== undefined && v !== null && String(v).trim() !== '') {
+            return String(v).trim();
+          }
+        }
+        return '';
+      }
+
+      var studentId = f(['StudentID', 'Student ID', 'Roll Number', 'Registration Number', 'Registration no.']);
+      var gitamEmail = f(['Email', 'GITAM Email', 'GITAM Email Address', 'Student Email', 'Email Address', 'Candidate Email']);
+
+      // Skip entirely empty rows
+      if (!studentId && !gitamEmail) return null;
+
+      return {
+        studentId: studentId || gitamEmail,
+        gitamEmail: gitamEmail,
+        fullName: f(['FullName', 'Full Name', 'Name', 'Student Name', 'Candidate Name']),
+        firstName: f(['FirstName', 'First Name']),
+        lastName: f(['LastName', 'Last Name']),
+        dateOfBirth: f(['DateOfBirth', 'Date of Birth', 'DOB']),
+        gender: f(['Gender', 'Sex']),
+        phoneNumber: f(['PhoneNumber', 'Phone Number', 'Phone', 'Mobile Number', 'Contact Number']),
+        personalEmail: f(['PersonalEmail', 'Personal Email', 'Alternate Email']),
+        address: f(['Address', 'Residential Address']),
+        city: f(['City']),
+        state: f(['State']),
+        country: f(['Country']),
+        academicYear: f(['AcademicYear', 'Academic Year', 'Year']),
+        program: f(['Program', 'Degree', 'Course']),
+        branch: f(['Branch', 'Department', 'Specialization']),
+        section: f(['Section', 'Class Section']),
+        rollNumber: f(['RollNumber', 'Roll Number', 'Roll No']),
+        registrationNumber: f(['RegistrationNumber', 'Registration Number', 'Registration no.', 'Reg No']),
+        cgpa: parseFloat(f(['CGPA', 'Current CGPA'])) || 0,
+        backlogs: parseInt(f(['Backlogs', 'Active Backlogs']), 10) || 0,
+        bookingStatus: f(['BookingStatus', 'Booking Status']) || 'Not Booked',
+        bookingId: f(['BookingID', 'Booking ID']),
+        bookingRequestId: f(['BookingRequestID', 'Booking Request ID']),
+        bookedDate: f(['InterviewDate', 'Interview Date']),
+        bookedSlotStart: f(['InterviewStart', 'Interview Start']),
+        bookedSlotEnd: f(['InterviewEnd', 'Interview End']),
+        bookedTimestamp: f(['BookingTimestamp', 'Booking Timestamp']),
+        approvalStatus: f(['ApprovalStatus', 'Approval Status']) || 'Pending',
+        decisionBy: f(['DecisionBy', 'Decision By']),
+        decisionTimestamp: f(['DecisionTimestamp', 'Decision Timestamp']),
+        decisionComment: f(['DecisionComment', 'AdminComment', 'Admin Comment']),
+        reviewFlagStatus: f(['ReviewFlagStatus', 'Review Flag Status']) || 'Not Flagged',
+        flaggedBy: f(['FlaggedBy', 'Flagged By']),
+        flaggedAt: f(['FlaggedAt', 'Flagged At']),
+        flagReason: f(['FlagReason', 'Flag Reason']),
+        formSubmissionTimestamp: f(['Timestamp', 'FormSubmissionTimestamp', 'Form Submission Timestamp']),
+        resumeLink: f(['ResumeLink', 'Resume Link', 'Resume']),
+        domainPreference1: f(['DomainPreference1', 'Preference 1', 'Primary Preference']),
+        domainPreference2: f(['DomainPreference2', 'Preference 2', 'Secondary Preference']),
+        domainPreference3: f(['DomainPreference3', 'Preference 3', 'Tertiary Preference']),
+        committeePreferences: f(['CommitteePreferences', 'Committee Preferences', 'Committee']),
+        rolesAppliedFor: f(['RolesAppliedFor', 'Roles Applied For', 'Role', 'Roles']),
+        writtenApplication: f(['WrittenApplication', 'Written Application', 'Application Essay', 'Statement']),
+        selfAssessment: f(['SelfAssessment', 'Self Assessment', 'Self Evaluation']),
+        availabilityCommute: f(['AvailabilityCommute', 'Availability Commute', 'Availability', 'Commute'])
+      };
+    })
+    .filter(Boolean);
 }

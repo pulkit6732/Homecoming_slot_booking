@@ -94,7 +94,7 @@ function getAdminSummary(token, dateStr) {
     else unbookedCount++;
 
     var appStatus = String(s.ApprovalStatus || 'Pending');
-    if (appStatus === 'Approved') approvedCount++;
+    if (appStatus === 'Approved' || appStatus === 'Accepted') approvedCount++;
     else if (appStatus === 'Rejected') rejectedCount++;
     else pendingReviewCount++;
 
@@ -470,8 +470,8 @@ function changeApprovalStatus(params) {
   if (!studentId) {
     return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Missing studentId');
   }
-  if (!newStatus || (newStatus !== 'Approved' && newStatus !== 'Rejected' && newStatus !== 'Pending')) {
-    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Invalid approval status: must be Approved, Rejected, or Pending');
+  if (!newStatus || (newStatus !== 'Approved' && newStatus !== 'Accepted' && newStatus !== 'Rejected' && newStatus !== 'Pending')) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Invalid approval status: must be Approved, Accepted, Rejected, or Pending');
   }
 
   var lock = LockService.getScriptLock();
@@ -844,4 +844,21 @@ function getCommentHistory(token, studentId) {
     studentId: studentId,
     comments: comments
   });
+}
+
+/**
+ * Returns all students from Student Database in a form suitable for the admin candidate table.
+ * Requires valid admin credentials.
+ *
+ * @param {string} token Admin Supabase JWT
+ * @return {Object}
+ */
+function getAllStudentsAdmin(token) {
+  var adminAuth = authenticateAdmin(token);
+  if (!adminAuth.authorized) {
+    return errorPayload(adminAuth.error.code, adminAuth.error.message);
+  }
+
+  var students = getAllStudentsForAdmin();
+  return successPayload({ students: students, count: students.length });
 }
