@@ -810,3 +810,108 @@ export async function getStudentDossier(
 
   return mockStorage.getStudentDossier(registrationNumber);
 }
+
+/**
+ * Student Email-Only Login:
+ * Authenticates a candidate via their registered institutional or personal email address.
+ * Backend verifies against the official student registration database.
+ * If registered, returns their student profile immediately.
+ * If unregistered, returns "This email is not registered. Access denied."
+ */
+export async function studentLoginByEmail(
+  email: string
+): Promise<ApiResponse<import('../types').Student>> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend<import('../types').Student>({
+        action: 'studentLoginByEmail',
+        email: normalizedEmail
+      });
+    } catch {
+      // Fall through to mockStorage in dev/mock mode
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  return mockStorage.studentLoginByEmail(normalizedEmail);
+}
+
+/**
+ * Checks whether an email belongs to an eligible student in the official database.
+ * Gates passwordless OTP generation: only registered candidates may proceed.
+ */
+export async function checkStudentEligibility(
+  email: string
+): Promise<ApiResponse<{ eligible: boolean; email: string }>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend<{ eligible: boolean; email: string }>({
+        action: 'checkStudentEligibility',
+        email: email.trim().toLowerCase()
+      });
+    } catch {
+      // Fall through to mockStorage in dev/mock mode
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  return mockStorage.checkStudentEligibility(email);
+}
+
+/**
+ * Retrieves the authenticated student's own profile using verified Supabase JWT.
+ * Server independently validates the token and queries the official registration sheet.
+ */
+export async function getStudentProfile(
+  token: string
+): Promise<ApiResponse<import('../types').Student>> {
+  if (isLiveBackendConfigured()) {
+    try {
+      return await getFromBackend<import('../types').Student>({
+        action: 'getStudentProfile',
+        token
+      });
+    } catch {
+      // Fall through to dev mode
+    }
+  }
+
+  if (!isDevMockAuthEnabled && !isLiveBackendConfigured()) {
+    return {
+      success: false,
+      error: { code: 'BACKEND_NOT_CONFIGURED', message: 'Backend service is not configured.' },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  const all = mockStorage.getAllStudents();
+  if (all.length > 0) {
+    return {
+      success: true,
+      data: all[0],
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  return {
+    success: false,
+    error: { code: 'UNREGISTERED_STUDENT', message: 'No registered student profile available in mock storage.' },
+    timestamp: new Date().toISOString()
+  };
+}

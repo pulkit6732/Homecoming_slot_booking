@@ -13,10 +13,22 @@ export function SlotDirectory({ slots, onBookSlot }: SlotDirectoryProps) {
   return (
     <div className="slot-directory-container">
       {/* Morning Session: 9:00 AM - 12:00 PM (18 slots) */}
-      <div className="slot-section-title">
-        <span>Morning Session (09:00 - 12:00 IST)</span>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.8)' }}>
-          18 slots • 10 mins each
+      <div
+        className="slot-section-title"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: '#FFFFFF',
+          fontWeight: 700,
+          margin: '1.5rem 0 0.85rem',
+        }}
+      >
+        <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFFFFF' }}>
+          Morning Session (09:00 - 12:00 IST)
+        </span>
+        <span className="session-slot-count">
+          18 Slots • 10 mins each
         </span>
       </div>
       <div className="slot-grid">
@@ -26,10 +38,22 @@ export function SlotDirectory({ slots, onBookSlot }: SlotDirectoryProps) {
       </div>
 
       {/* Afternoon Session: 1:00 PM - 4:00 PM (18 slots) */}
-      <div className="slot-section-title">
-        <span>Afternoon Session (13:00 - 16:00 IST)</span>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.8)' }}>
-          18 slots • 10 mins each
+      <div
+        className="slot-section-title"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: '#FFFFFF',
+          fontWeight: 700,
+          margin: '1.5rem 0 0.85rem',
+        }}
+      >
+        <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFFFFF' }}>
+          Afternoon Session (13:00 - 16:00 IST)
+        </span>
+        <span className="session-slot-count">
+          18 Slots • 10 mins each
         </span>
       </div>
       <div className="slot-grid">

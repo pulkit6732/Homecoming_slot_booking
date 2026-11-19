@@ -103,6 +103,24 @@
   gap: 0.5rem;
 }
 
+.slot-section-title span,
+.slot-section-title h3,
+.slot-section-title h4 {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.session-slot-count {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
 .slot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -638,11 +656,11 @@
 
 .admin-subnav-btn {
   padding: 0.55rem 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #d2e5dc;
+  font-weight: 700;
+  color: #ffffff;
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: inline-flex;
@@ -652,8 +670,9 @@
 }
 
 .admin-subnav-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.45);
 }
 
 .admin-subnav-btn.active {

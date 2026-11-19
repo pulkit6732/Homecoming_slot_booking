@@ -88,9 +88,79 @@ class MockStorageService {
   }
 
   public getStudentByEmail(email: string): Student | undefined {
+    const clean = email.trim().toLowerCase()
     return this.inMemoryStudents.find(
-      (s) => s.gitamEmail.toLowerCase() === email.toLowerCase() || s.personalEmail.toLowerCase() === email.toLowerCase(),
+      (s) => s.gitamEmail.toLowerCase() === clean || s.personalEmail.toLowerCase() === clean,
     )
+  }
+
+  public checkStudentEligibility(email: string):
+    | { success: true; data: { eligible: boolean; email: string }; timestamp: string }
+    | { success: false; error: { code: string; message: string }; timestamp: string } {
+    const student = this.getStudentByEmail(email)
+    if (!student) {
+      return {
+        success: false,
+        error: {
+          code: 'UNREGISTERED_STUDENT',
+          message: `This email address (${email.trim()}) is not registered in the student database. Only registered students are eligible to sign in.`,
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+    return {
+      success: true,
+      data: {
+        eligible: true,
+        email: student.gitamEmail,
+      },
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  public studentLoginByEmail(email: string):
+    | { success: true; data: Student; timestamp: string }
+    | { success: false; error: { code: string; message: string }; timestamp: string } {
+    const clean = email.trim().toLowerCase()
+    if (!clean) {
+      return {
+        success: false,
+        error: { code: 'MISSING_PARAMETER', message: 'Email address is required' },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    const matches = this.inMemoryStudents.filter(
+      (s) => s.gitamEmail.toLowerCase() === clean || s.personalEmail.toLowerCase() === clean,
+    )
+
+    if (matches.length === 0) {
+      return {
+        success: false,
+        error: {
+          code: 'UNREGISTERED_STUDENT',
+          message: 'This email is not registered. Access denied.',
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    if (matches.length > 1) {
+      return {
+        success: false,
+        error: {
+          code: 'AMBIGUOUS_STUDENT_RECORD',
+          message: 'Multiple registration records match this email address. Please contact the university placement office.',
+        },
+        timestamp: new Date().toISOString(),
+      }
+    }
+
+    return {
+      success: true,
+      data: matches[0],
+      timestamp: new Date().toISOString(),
+    }
   }
 
   public getAllBookings(): BookingConfirmation[] {

@@ -37,6 +37,18 @@ function doGet(e) {
         var summaryDate = params.date || '';
         return createJsonResponse(getAdminSummary(summaryToken, summaryDate));
 
+      case 'studentLoginByEmail':
+        var studentEmail = params.email || '';
+        return createJsonResponse(studentLoginByEmail(studentEmail));
+
+      case 'checkStudentEligibility':
+        var eligEmail = params.email || '';
+        return createJsonResponse(checkStudentEligibility(eligEmail));
+
+      case 'getStudentProfile':
+        var profToken = params.token || '';
+        return createJsonResponse(getStudentProfile(profToken));
+
       case 'getStudentDetails':
         var detailsToken = params.token || '';
         var studentId = params.studentId || '';

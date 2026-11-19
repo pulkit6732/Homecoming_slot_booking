@@ -400,3 +400,124 @@ function authenticateStudent(token) {
     studentRecord: studentRecord
   };
 }
+
+/**
+ * Checks whether an email address belongs to an eligible student in the official database.
+ * Strictly used to gate passwordless OTP generation: only registered candidates may proceed.
+ * 
+ * @param {string} email
+ * @return {Object} Standardized result payload
+ */
+function checkStudentEligibility(email) {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Email address is required');
+  }
+
+  var studentRecord = null;
+  try {
+    studentRecord = getStudentRecordByEmail(email.trim());
+  } catch (err) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.INTERNAL_ERROR,
+      'Student registration database is currently unavailable: ' + (err.message || String(err))
+    );
+  }
+
+  if (!studentRecord) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.UNREGISTERED_STUDENT,
+      'This email address (' + email.trim() + ') is not registered in the student database. Only registered students are eligible to sign in.'
+    );
+  }
+
+  if (studentRecord.isAmbiguous) {
+    return errorPayload(
+      'AMBIGUOUS_STUDENT_RECORD',
+      'Multiple registrations were found for (' + email.trim() + '). Please contact the university administrator to resolve the ambiguity.'
+    );
+  }
+
+  return successPayload({
+    eligible: true,
+    email: email.trim().toLowerCase()
+  });
+}
+
+/**
+ * Retrieves the authenticated student's own profile using verified Supabase JWT.
+ * Validates token claims, expiry, and email verification.
+ * 
+ * @param {string} token Supabase identity token
+ * @return {Object} Standardized result payload
+ */
+function getStudentProfile(token) {
+  var studentAuth = authenticateStudent(token);
+  if (!studentAuth.authorized) {
+    return errorPayload(studentAuth.error.code, studentAuth.error.message);
+  }
+
+  return successPayload(studentAuth.studentRecord);
+}
+
+/**
+ * Student Email-Only Login:
+ * Authenticates a candidate via their registered institutional or personal email address.
+ * Backend verifies against the official student registration database.
+ * If registered, returns their student profile immediately.
+ * If unregistered, returns "This email is not registered. Access denied."
+ * If ambiguous, returns "Multiple registration records match this email address. Please contact the university placement office."
+ * 
+ * Note: Email-only access does not verify identity/email ownership per explicit specification.
+ * 
+ * @param {string} email
+ * @return {Object} Standardized result payload
+ */
+function studentLoginByEmail(email) {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return errorPayload(CONFIG.ERROR_CODES.MISSING_PARAMETER, 'Email address is required');
+  }
+
+  var normalizedEmail = email.trim().toLowerCase();
+  var studentRecord = null;
+  try {
+    studentRecord = getStudentRecordByEmail(normalizedEmail);
+  } catch (err) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.INTERNAL_ERROR,
+      'Student registration database is currently unavailable: ' + (err.message || String(err))
+    );
+  }
+
+  if (!studentRecord) {
+    return errorPayload(
+      CONFIG.ERROR_CODES.UNREGISTERED_STUDENT,
+      'This email is not registered. Access denied.'
+    );
+  }
+
+  if (studentRecord.isAmbiguous) {
+    return errorPayload(
+      'AMBIGUOUS_STUDENT_RECORD',
+      'Multiple registration records match this email address. Please contact the university placement office.'
+    );
+  }
+
+  // Return minimal required student session info without exposing master sheet
+  return successPayload({
+    studentId: studentRecord.studentId || studentRecord['Student ID'] || '',
+    fullName: studentRecord.fullName || studentRecord['Name'] || studentRecord['Full Name'] || '',
+    gitamEmail: studentRecord.gitamEmail || studentRecord['GITAM Email Address'] || studentRecord['Email Address'] || normalizedEmail,
+    personalEmail: studentRecord.personalEmail || studentRecord['Personal Email Address'] || '',
+    registrationNumber: studentRecord.registrationNumber || studentRecord['Registration Number'] || '',
+    rollNumber: studentRecord.rollNumber || studentRecord['Roll Number'] || '',
+    branch: studentRecord.branch || studentRecord['Branch'] || '',
+    yearOfPassing: studentRecord.yearOfPassing || studentRecord['Passout Year'] || studentRecord['Graduation Year'] || 2026,
+    bookingStatus: studentRecord.bookingStatus || studentRecord['Booking Status'] || 'Not Booked',
+    bookedDate: studentRecord.bookedDate || studentRecord['Booked Date'] || '',
+    bookedSlotStart: studentRecord.bookedSlotStart || studentRecord['Booked Slot Time'] || '',
+    bookedSlotEnd: studentRecord.bookedSlotEnd || '',
+    bookingId: studentRecord.bookingId || studentRecord['Booking ID'] || '',
+    approvalStatus: studentRecord.approvalStatus || studentRecord['Approval Status'] || 'Pending',
+    reviewFlag: studentRecord.reviewFlag || studentRecord['Review Flag Status'] || 'Not Flagged'
+  });
+}

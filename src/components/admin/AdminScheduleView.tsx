@@ -109,16 +109,46 @@ export function AdminScheduleView({
   return (
     <div style={{ marginBottom: '2rem' }}>
       {/* Morning Session */}
-      <div className="slot-section-title">
-        <span>Morning Session (09:00 - 12:00 IST) — 18 Slots</span>
+      <div
+        className="slot-section-title"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: '#FFFFFF',
+          fontWeight: 700,
+          margin: '1.5rem 0 0.85rem',
+        }}
+      >
+        <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFFFFF' }}>
+          Morning Session (09:00 - 12:00 IST)
+        </span>
+        <span className="session-slot-count">
+          18 Slots
+        </span>
       </div>
       <div className="slot-grid" style={{ marginBottom: '1.5rem' }}>
         {morningSlots.map(renderSlotItem)}
       </div>
 
       {/* Afternoon Session */}
-      <div className="slot-section-title">
-        <span>Afternoon Session (13:00 - 16:00 IST) — 18 Slots</span>
+      <div
+        className="slot-section-title"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: '#FFFFFF',
+          fontWeight: 700,
+          margin: '1.5rem 0 0.85rem',
+        }}
+      >
+        <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFFFFF' }}>
+          Afternoon Session (13:00 - 16:00 IST)
+        </span>
+        <span className="session-slot-count">
+          18 Slots
+        </span>
       </div>
       <div className="slot-grid">
         {afternoonSlots.map(renderSlotItem)}

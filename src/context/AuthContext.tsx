@@ -11,6 +11,7 @@ import {
   isSupabaseConfigured,
 } from '../services/supabaseClient'
 import { mockStorage } from '../services/mockStorage.ts'
+import { studentLoginByEmail, getStudentProfile, isLiveBackendConfigured } from '../services/appsScriptClient.ts'
 
 const AUTH_STORAGE_KEY = 'gitam_auth_session_v1'
 
@@ -73,7 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 accessToken: token,
               })
             } else {
-              const matchedStudent = resolveStudentFromIdentifier(userEmail)
+              // Non-admin session: Verify student registration with backend using verified JWT token
+              let matchedStudent = resolveStudentFromIdentifier(userEmail)
+              if (!matchedStudent && token) {
+                try {
+                  const profRes = await getStudentProfile(token)
+                  if (profRes.success && profRes.data) {
+                    matchedStudent = profRes.data
+                  }
+                } catch {
+                  // Fall through
+                }
+              }
+
               if (matchedStudent) {
                 setUser({
                   id: data.session.user.id,
@@ -99,50 +112,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 2. Production Build Check: NEVER trust localStorage as authentication authority
-      if (!isDevMockAuthEnabled) {
-        // Clear any lingering dev session key in production
-        try {
-          localStorage.removeItem(AUTH_STORAGE_KEY)
-        } catch {
-          // ignore
-        }
-        setUser(null)
-        setIsLoading(false)
-        return
-      }
-
-      // 3. Isolated Development Mock Mode Session Restoration
+      // 2. Student Email Session or Dev Admin Restoration
       try {
         const cached = localStorage.getItem(AUTH_STORAGE_KEY)
         if (cached) {
           const parsed = JSON.parse(cached)
           // Anti-tampering check: Never restore admin role from localStorage unless verified against dev admin list
           if (parsed?.role === 'admin') {
-            const parsedEmail = String(parsed.email || '').trim().toLowerCase()
-            if (DEV_AUTHORIZED_ADMINS.includes(parsedEmail)) {
-              setUser({
-                id: parsed.id || 'admin-session',
-                email: parsedEmail,
-                role: 'admin',
-              })
+            if (isDevMockAuthEnabled) {
+              const parsedEmail = String(parsed.email || '').trim().toLowerCase()
+              if (DEV_AUTHORIZED_ADMINS.includes(parsedEmail)) {
+                setUser({
+                  id: parsed.id || 'admin-session',
+                  email: parsedEmail,
+                  role: 'admin',
+                })
+              } else {
+                localStorage.removeItem(AUTH_STORAGE_KEY)
+                setUser(null)
+              }
             } else {
-              // Tampered role detected: reject and clear
+              // In production, admin credentials require live Supabase authentication
               localStorage.removeItem(AUTH_STORAGE_KEY)
               setUser(null)
             }
-          } else if (parsed?.role === 'student' && parsed?.studentProfile?.studentId) {
-            const freshStudent = mockStorage.getStudentById(parsed.studentProfile.studentId)
-            if (freshStudent) {
-              setUser({
-                id: freshStudent.studentId,
-                email: freshStudent.gitamEmail,
-                role: 'student',
-                studentProfile: freshStudent,
-              })
-            } else {
-              localStorage.removeItem(AUTH_STORAGE_KEY)
-              setUser(null)
+          } else if (parsed?.role === 'student' && (parsed?.email || parsed?.studentProfile?.studentId)) {
+            const studentEmail = parsed.email || parsed.studentProfile?.gitamEmail
+            if (studentEmail) {
+              if (isLiveBackendConfigured()) {
+                const res = await studentLoginByEmail(studentEmail)
+                if (res.success && res.data) {
+                  setUser({
+                    id: res.data.studentId,
+                    email: res.data.gitamEmail,
+                    role: 'student',
+                    studentProfile: res.data,
+                    accessToken: 'STUDENT_EMAIL_SESSION',
+                  })
+                } else {
+                  localStorage.removeItem(AUTH_STORAGE_KEY)
+                  setUser(null)
+                }
+              } else if (isDevMockAuthEnabled) {
+                const fresh = mockStorage.getStudentByEmail(studentEmail) ||
+                  (parsed.studentProfile?.studentId ? mockStorage.getStudentById(parsed.studentProfile.studentId) : undefined) ||
+                  parsed.studentProfile
+                if (fresh) {
+                  setUser({
+                    id: fresh.studentId,
+                    email: fresh.gitamEmail,
+                    role: 'student',
+                    studentProfile: fresh,
+                    accessToken: 'STUDENT_EMAIL_SESSION',
+                  })
+                } else {
+                  localStorage.removeItem(AUTH_STORAGE_KEY)
+                  setUser(null)
+                }
+              } else if (parsed?.studentProfile) {
+                setUser({
+                  id: parsed.id || parsed.studentProfile.studentId,
+                  email: parsed.email || parsed.studentProfile.gitamEmail,
+                  role: 'student',
+                  studentProfile: parsed.studentProfile,
+                  accessToken: 'STUDENT_EMAIL_SESSION',
+                })
+              }
             }
           }
         }
@@ -311,6 +346,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }
 
+  // Student Email-Only Login handler
+  // Validates email with backend against the official student database.
+  // If registered: immediately grants student access with verified profile.
+  // If unregistered: returns exact error "This email is not registered. Access denied."
+  // If ambiguous: returns "Multiple registration records match this email address. Please contact the university placement office."
+  //
+  // Note per explicit user requirements: Email-only access does not verify identity/email ownership.
+  const loginStudentByEmail = async (email: string): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    setError(null)
+
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      const msg = 'Please enter a valid email address.'
+      setError(msg)
+      setIsLoading(false)
+      return { success: false, message: msg }
+    }
+
+    const res = await studentLoginByEmail(cleanEmail)
+    if (!res.success) {
+      const msg = res.error?.message || 'This email is not registered. Access denied.'
+      setError(msg)
+      setIsLoading(false)
+      return { success: false, message: msg }
+    }
+
+    const studentRecord = res.data
+    const studentUser: AuthUser = {
+      id: studentRecord.studentId,
+      email: studentRecord.gitamEmail,
+      role: 'student',
+      studentProfile: studentRecord,
+      accessToken: 'STUDENT_EMAIL_SESSION',
+    }
+
+    setUser(studentUser)
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(studentUser))
+    } catch {
+      // ignore
+    }
+
+    setIsLoading(false)
+    return { success: true }
+  }
+
   // Logout handler
   const logout = async () => {
     setIsLoading(true)
@@ -342,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         login,
+        loginStudentByEmail,
         logout,
         clearError,
       }}
